@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SecretStatus {
+  ACTIVE
+  OPENED
+  EXPIRED
+  DESTROYED
+}
+
+enum RequestStatus {
+  OPEN
+  SUBMITTED
+  OPENED
+  EXPIRED
+  DESTROYED
+}
+
+model Secret {
+  id                 String         @id @default(cuid())
+  ciphertext         String
+  iv                 String
+  algorithm          String         @default("AES-GCM")
+  note               String?
+  expiresAt          DateTime
+  openedAt           DateTime?
+  destroyedAt        DateTime?
+  passphraseRequired Boolean        @default(false)
+  source             String         @default("direct")
+  requestId          String?        @unique
+  status             SecretStatus   @default(ACTIVE)
+  createdAt          DateTime       @default(now())
+  request            SecretRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+}
+
+model SecretRequest {
+  id          String        @id @default(cuid())
+  token       String        @unique
+  label       String
+  note        String?
+  expiresAt   DateTime
+  submittedAt DateTime?
+  openedAt    DateTime?
+  destroyedAt DateTime?
+  status      RequestStatus @default(OPEN)
+  createdAt   DateTime      @default(now())
+  secret      Secret?
+
+  @@index([token, status, expiresAt])
+}
