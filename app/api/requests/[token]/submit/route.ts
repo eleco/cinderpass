@@ -17,10 +17,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       iv?: string;
       note?: string;
       passphraseRequired?: boolean;
+      passphraseSalt?: string;
+      passphraseVerifier?: string;
     };
 
     if (!body.ciphertext || !body.iv) {
       return NextResponse.json({ error: 'ciphertext and iv are required' }, { status: 400 });
+    }
+
+    if (body.passphraseRequired && (!body.passphraseSalt || !body.passphraseVerifier)) {
+      return NextResponse.json({ error: 'passphrase proof is required' }, { status: 400 });
     }
 
     const { ciphertext, iv } = body;
@@ -47,6 +53,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           note: sanitizeNote(body.note) || requestLatest.label,
           expiresAt: requestLatest.expiresAt,
           passphraseRequired: Boolean(body.passphraseRequired),
+          passphraseSalt: body.passphraseSalt ?? null,
+          passphraseVerifier: body.passphraseVerifier ?? null,
           source: 'request',
           requestId: requestLatest.id,
         },
@@ -61,7 +69,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return secret;
     });
 
-    return NextResponse.json({ revealUrl: `${getBaseUrl()}/secret/${created.id}` });
+    return NextResponse.json({ revealUrl: `${getBaseUrl(request)}/secret/${created.id}` });
   } catch (error) {
     logRouteError(`POST /api/requests/${token}/submit`, error);
     const message = error instanceof Error ? error.message : 'Unable to submit secret';

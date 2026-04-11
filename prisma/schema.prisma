@@ -32,6 +32,9 @@ model Secret {
   openedAt           DateTime?
   destroyedAt        DateTime?
   passphraseRequired Boolean        @default(false)
+  passphraseSalt     String?
+  passphraseVerifier String?
+  destroyToken       String?        @unique
   source             String         @default("direct")
   requestId          String?        @unique
   status             SecretStatus   @default(ACTIVE)

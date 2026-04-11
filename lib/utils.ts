@@ -4,8 +4,16 @@ export function createToken(length = 32): string {
   return randomBytes(length).toString('base64url');
 }
 
-export function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+export function getBaseUrl(request?: Request): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  if (request) {
+    return new URL(request.url).origin;
+  }
+
+  return 'http://localhost:3000';
 }
 
 export function isExpired(date: Date): boolean {

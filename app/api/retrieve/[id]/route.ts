@@ -1,9 +1,42 @@
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { logRouteError, requireDatabaseUrl } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, getIp, rateLimitResponse } from '@/lib/ratelimit';
 import { isExpired } from '@/lib/utils';
 
-export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  if (!checkRateLimit(`retrieve:${getIp(request)}`, 20, 60_000)) {
+    return rateLimitResponse();
+  }
+
+  try {
+    const databaseConfigError = requireDatabaseUrl();
+    if (databaseConfigError) return databaseConfigError;
+
+    const secret = await prisma.secret.findUnique({
+      where: { id },
+      select: { status: true, expiresAt: true, passphraseRequired: true, passphraseSalt: true, note: true },
+    });
+
+    if (!secret) return NextResponse.json({ error: 'Secret not found' }, { status: 404 });
+    if (secret.status !== 'ACTIVE') return NextResponse.json({ error: 'Secret already opened or destroyed' }, { status: 410 });
+    if (isExpired(secret.expiresAt)) return NextResponse.json({ error: 'Secret has expired' }, { status: 410 });
+
+    return NextResponse.json({
+      passphraseRequired: secret.passphraseRequired,
+      passphraseSalt: secret.passphraseSalt,
+      note: secret.note,
+    });
+  } catch (error) {
+    logRouteError(`GET /api/retrieve/${id}`, error);
+    return NextResponse.json({ error: 'Unable to check secret' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   try {
@@ -11,6 +44,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     if (databaseConfigError) {
       return databaseConfigError;
     }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      passphraseVerifier?: string;
+    };
 
     const result = await prisma.$transaction(async (tx) => {
       const secret = await tx.secret.findUnique({ where: { id } });
@@ -22,6 +59,20 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
           data: { status: 'EXPIRED', destroyedAt: new Date() },
         });
         return { error: 'Secret has expired', status: 410 as const };
+      }
+      if (secret.passphraseRequired) {
+        if (!secret.passphraseSalt || !secret.passphraseVerifier) {
+          return { error: 'This secret is missing passphrase verification data. Ask the sender to create a new secret.', status: 409 as const };
+        }
+        if (!body.passphraseVerifier) {
+          return { error: 'Passphrase proof is required', status: 400 as const };
+        }
+
+        const expected = Buffer.from(secret.passphraseVerifier, 'base64');
+        const actual = Buffer.from(body.passphraseVerifier, 'base64');
+        if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+          return { error: 'Incorrect passphrase', status: 403 as const };
+        }
       }
 
       const now = new Date();
@@ -43,6 +94,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
           ciphertext: secret.ciphertext,
           iv: secret.iv,
           passphraseRequired: secret.passphraseRequired,
+          passphraseSalt: secret.passphraseSalt,
           note: secret.note,
           openedAt: now.toISOString(),
         },

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logRouteError, requireDatabaseUrl } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, getIp, rateLimitResponse } from '@/lib/ratelimit';
 import { addHours, createToken, getBaseUrl, sanitizeNote } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
+  if (!checkRateLimit(`requests:${getIp(request)}`, 10, 60_000)) {
+    return rateLimitResponse();
+  }
+
   try {
     const databaseConfigError = requireDatabaseUrl();
     if (databaseConfigError) {
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ requestUrl: `${getBaseUrl()}/request/${token}` });
+    return NextResponse.json({ requestUrl: `${getBaseUrl(request)}/request/${token}` });
   } catch (error) {
     logRouteError('POST /api/requests', error);
     return NextResponse.json({ error: 'Unable to create request link' }, { status: 500 });
