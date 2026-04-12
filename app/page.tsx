@@ -1,8 +1,9 @@
 import { SecretCreateForm, SecretRequestForm } from '@/components/forms';
 import { JsonLd } from '@/components/JsonLd';
 import { HowItWorks } from '@/components/HowItWorks';
+import { getConfiguredBaseUrl } from '@/lib/utils';
 
-const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const base = getConfiguredBaseUrl();
 
 const appSchema = {
   '@context': 'https://schema.org',

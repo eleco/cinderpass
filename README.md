@@ -62,7 +62,8 @@ Required environment variables:
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `NEXT_PUBLIC_APP_URL` | Public base URL used to build share links |
+| `APP_URL` | Preferred canonical public base URL for links and metadata in deployed environments |
+| `NEXT_PUBLIC_APP_URL` | Optional public base URL fallback; kept for client-visible configuration compatibility |
 | `CRON_SECRET` | Bearer token protecting `/api/cron/prune` (required in production) |
 
 Generate `CRON_SECRET` with:
@@ -77,7 +78,7 @@ openssl rand -hex 32
 
 1. Push the repo to GitHub and import it into Vercel.
 2. Add a Postgres database via Vercel Marketplace or connect your own.
-3. Set `NEXT_PUBLIC_APP_URL` to your production domain and `CRON_SECRET` to a random secret.
+3. Set `APP_URL` to your production domain and `CRON_SECRET` to a random secret.
 4. Deploy. Vercel picks up `vercel.json` and schedules the hourly prune job automatically.
 
 ---

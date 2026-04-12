@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { isExpired, addHours, sanitizeNote, createToken, getBaseUrl } from '@/lib/utils';
+import { isExpired, addHours, sanitizeNote, createToken, getBaseUrl, getConfiguredBaseUrl } from '@/lib/utils';
 
 afterEach(() => {
   vi.useRealTimers();
+  delete process.env.APP_URL;
+  process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
+  delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  delete process.env.VERCEL_URL;
 });
 
 describe('isExpired', () => {
@@ -88,13 +92,33 @@ describe('getBaseUrl', () => {
     expect(getBaseUrl()).toBe('http://localhost:3000');
   });
 
+  it('prefers APP_URL over NEXT_PUBLIC_APP_URL', () => {
+    process.env.APP_URL = 'https://burnlink.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://public.example.com';
+
+    expect(getBaseUrl()).toBe('https://burnlink.example.com');
+  });
+
   it('extracts origin from request URL when env not set', () => {
+    const originalAppUrl = process.env.APP_URL;
     const original = process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
 
     const req = new Request('https://cinderpass.com/api/secrets');
     expect(getBaseUrl(req)).toBe('https://cinderpass.com');
 
+    process.env.APP_URL = originalAppUrl;
     process.env.NEXT_PUBLIC_APP_URL = original;
+  });
+});
+
+describe('getConfiguredBaseUrl', () => {
+  it('uses VERCEL_PROJECT_PRODUCTION_URL when explicit app URLs are not set', () => {
+    delete process.env.APP_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'burnlink.vercel.app';
+
+    expect(getConfiguredBaseUrl()).toBe('https://burnlink.vercel.app');
   });
 });

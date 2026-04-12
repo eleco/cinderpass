@@ -1,4 +1,5 @@
 import { JsonLd } from '@/components/JsonLd';
+import { getConfiguredBaseUrl } from '@/lib/utils';
 
 type Faq = { q: string; a: string };
 type Feature = { title: string; body: string };
@@ -22,7 +23,7 @@ export function LandingPage({
   ctaLabel?: string;
   slug: string;
 }) {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const base = getConfiguredBaseUrl();
 
   const schema = {
     '@context': 'https://schema.org',

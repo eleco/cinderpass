@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { FaqAccordion } from '@/components/FaqAccordion';
 import { JsonLd } from '@/components/JsonLd';
+import { getConfiguredBaseUrl } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'FAQ',
@@ -118,7 +119,7 @@ const sections = [
   },
 ];
 
-const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const base = getConfiguredBaseUrl();
 
 const faqSchema = {
   '@context': 'https://schema.org',

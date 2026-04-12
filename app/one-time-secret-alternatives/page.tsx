@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { JsonLd } from '@/components/JsonLd';
+import { getConfiguredBaseUrl } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'One-Time Secret Alternatives in 2026',
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
     'Comparing the best One-Time Secret alternatives: Yopass, PrivateBin, Bitwarden Send, and Cinderpass. Encryption models, features, and honest trade-offs.',
 };
 
-const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const base = getConfiguredBaseUrl();
 
 const faqSchema = {
   '@context': 'https://schema.org',

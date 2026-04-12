@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
+import { getConfiguredBaseUrl } from '@/lib/utils';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   },
   description:
     'Share passwords, API keys, and credentials with a one-time link. Encrypted in your browser. Burns after reading. Free and open source.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+  metadataBase: new URL(getConfiguredBaseUrl()),
   openGraph: {
     siteName: 'Cinderpass',
     type: 'website',
