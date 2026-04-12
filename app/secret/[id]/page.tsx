@@ -3,7 +3,7 @@ import { SecretReader } from '@/components/forms';
 import { SecurityExplainer } from '@/components/SecurityExplainer';
 
 export const metadata: Metadata = {
-  title: 'Reveal secret — Cinderpass',
+  title: 'Reveal secret',
 };
 
 export default async function SecretPage({ params }: { params: Promise<{ id: string }> }) {

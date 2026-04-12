@@ -13,8 +13,17 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'Cinderpass',
-  description: 'Open-source one-time secret sharing for serious teams.',
+  title: {
+    default: 'Cinderpass — Secure One-Time Secret & Password Sharing',
+    template: '%s — Cinderpass',
+  },
+  description:
+    'Share passwords, API keys, and credentials with a one-time link. Encrypted in your browser. Burns after reading. Free and open source.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+  openGraph: {
+    siteName: 'Cinderpass',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

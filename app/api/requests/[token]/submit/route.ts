@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logRouteError, requireDatabaseUrl } from '@/lib/api';
+import { logRouteError, requireDatabaseUrl, validateCiphertextPayload } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
 import { getBaseUrl, isExpired, sanitizeNote } from '@/lib/utils';
 
@@ -21,15 +21,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       passphraseVerifier?: string;
     };
 
-    if (!body.ciphertext || !body.iv) {
-      return NextResponse.json({ error: 'ciphertext and iv are required' }, { status: 400 });
+    const payloadError = validateCiphertextPayload(body.ciphertext, body.iv);
+    if (payloadError) {
+      return NextResponse.json({ error: payloadError }, { status: 400 });
     }
 
     if (body.passphraseRequired && (!body.passphraseSalt || !body.passphraseVerifier)) {
       return NextResponse.json({ error: 'passphrase proof is required' }, { status: 400 });
     }
 
-    const { ciphertext, iv } = body;
+    const { ciphertext, iv } = body as { ciphertext: string; iv: string };
 
     const requestRow = await prisma.secretRequest.findUnique({ where: { token } });
     if (!requestRow) {

@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { logRouteError, requireDatabaseUrl } from '@/lib/api';
+import { logRouteError, requireDatabaseUrl, validateCiphertextPayload } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, getIp, rateLimitResponse } from '@/lib/ratelimit';
 import { addHours, getBaseUrl, sanitizeNote } from '@/lib/utils';
@@ -26,9 +26,11 @@ export async function POST(request: NextRequest) {
       passphraseVerifier?: string;
     };
 
-    if (!body.ciphertext || !body.iv) {
-      return NextResponse.json({ error: 'ciphertext and iv are required' }, { status: 400 });
+    const payloadError = validateCiphertextPayload(body.ciphertext, body.iv);
+    if (payloadError) {
+      return NextResponse.json({ error: payloadError }, { status: 400 });
     }
+    const { ciphertext, iv } = body as { ciphertext: string; iv: string };
 
     if (body.passphraseRequired && (!body.passphraseSalt || !body.passphraseVerifier)) {
       return NextResponse.json({ error: 'passphrase proof is required' }, { status: 400 });
@@ -39,8 +41,8 @@ export async function POST(request: NextRequest) {
 
     const secret = await prisma.secret.create({
       data: {
-        ciphertext: body.ciphertext,
-        iv: body.iv,
+        ciphertext,
+        iv,
         expiresAt: addHours(ttlHours),
         note: sanitizeNote(body.note),
         passphraseRequired: Boolean(body.passphraseRequired),

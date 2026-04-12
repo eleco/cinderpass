@@ -4,7 +4,7 @@ import { isExpired } from '@/lib/utils';
 import { RequestSubmitForm } from '@/components/forms';
 
 export const metadata: Metadata = {
-  title: 'Submit secret — Cinderpass',
+  title: 'Submit secret',
 };
 
 export default async function RequestPage({ params }: { params: Promise<{ token: string }> }) {

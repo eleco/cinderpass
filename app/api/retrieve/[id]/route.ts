@@ -49,37 +49,58 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       passphraseVerifier?: string;
     };
 
-    const result = await prisma.$transaction(async (tx) => {
-      const secret = await tx.secret.findUnique({ where: { id } });
-      if (!secret) return { error: 'Secret not found', status: 404 as const };
-      if (secret.status !== 'ACTIVE') return { error: 'Secret already opened or destroyed', status: 410 as const };
-      if (isExpired(secret.expiresAt)) {
-        await tx.secret.update({
+    // Pre-flight: read and validate without burning. This is not the atomic
+    // step — it is only used for early rejection (not found, expired, wrong
+    // passphrase). The actual burn is the atomic updateMany below.
+    const secret = await prisma.secret.findUnique({ where: { id } });
+    if (!secret) return NextResponse.json({ error: 'Secret not found' }, { status: 404 });
+    if (secret.status !== 'ACTIVE') return NextResponse.json({ error: 'Secret already opened or destroyed' }, { status: 410 });
+    if (isExpired(secret.expiresAt)) {
+      await prisma.secret.updateMany({ where: { id, status: 'ACTIVE' }, data: { status: 'EXPIRED', destroyedAt: new Date() } });
+      return NextResponse.json({ error: 'Secret has expired' }, { status: 410 });
+    }
+
+    const MAX_PASSPHRASE_ATTEMPTS = 5;
+
+    if (secret.passphraseRequired) {
+      if (!secret.passphraseSalt || !secret.passphraseVerifier) {
+        return NextResponse.json({ error: 'This secret is missing passphrase verification data. Ask the sender to create a new secret.' }, { status: 409 });
+      }
+      if (secret.passphraseAttempts >= MAX_PASSPHRASE_ATTEMPTS) {
+        return NextResponse.json({ error: 'Too many incorrect passphrase attempts. This secret is locked.' }, { status: 403 });
+      }
+      if (!body.passphraseVerifier) {
+        return NextResponse.json({ error: 'Passphrase proof is required' }, { status: 400 });
+      }
+      const expected = Buffer.from(secret.passphraseVerifier, 'base64');
+      const actual = Buffer.from(body.passphraseVerifier, 'base64');
+      if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+        // Increment atomically — don't await the result to avoid leaking timing info
+        void prisma.secret.update({
           where: { id },
-          data: { status: 'EXPIRED', destroyedAt: new Date() },
+          data: { passphraseAttempts: { increment: 1 } },
         });
-        return { error: 'Secret has expired', status: 410 as const };
+        const remaining = MAX_PASSPHRASE_ATTEMPTS - secret.passphraseAttempts - 1;
+        const msg = remaining > 0
+          ? `Incorrect passphrase. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+          : 'Incorrect passphrase. This secret is now locked.';
+        return NextResponse.json({ error: msg }, { status: 403 });
       }
-      if (secret.passphraseRequired) {
-        if (!secret.passphraseSalt || !secret.passphraseVerifier) {
-          return { error: 'This secret is missing passphrase verification data. Ask the sender to create a new secret.', status: 409 as const };
-        }
-        if (!body.passphraseVerifier) {
-          return { error: 'Passphrase proof is required', status: 400 as const };
-        }
+    }
 
-        const expected = Buffer.from(secret.passphraseVerifier, 'base64');
-        const actual = Buffer.from(body.passphraseVerifier, 'base64');
-        if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-          return { error: 'Incorrect passphrase', status: 403 as const };
-        }
-      }
-
-      const now = new Date();
-      await tx.secret.update({
-        where: { id },
+    // Atomic burn: only one concurrent request can transition ACTIVE → OPENED.
+    // If count === 0, another request won the race between our pre-flight read
+    // and this update — treat it as already consumed.
+    const now = new Date();
+    const result = await prisma.$transaction(async (tx) => {
+      const burned = await tx.secret.updateMany({
+        where: { id, status: 'ACTIVE', expiresAt: { gt: now } },
         data: { status: 'OPENED', openedAt: now, destroyedAt: now },
       });
+
+      if (burned.count === 0) {
+        return { error: 'Secret already opened or destroyed', status: 410 as const };
+      }
 
       if (secret.requestId) {
         await tx.secretRequest.update({

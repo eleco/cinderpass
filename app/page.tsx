@@ -1,8 +1,25 @@
 import { SecretCreateForm, SecretRequestForm } from '@/components/forms';
+import { JsonLd } from '@/components/JsonLd';
+import { HowItWorks } from '@/components/HowItWorks';
+
+const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+
+const appSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Cinderpass',
+  url: base,
+  applicationCategory: 'SecurityApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description:
+    'Share passwords, API keys, and credentials with a one-time link. Encrypted in your browser. Burns after reading. Free and open source.',
+};
 
 export default function HomePage() {
   return (
     <main className="site-shell">
+      <JsonLd data={appSchema} />
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
       <div className="container page-stack">
@@ -11,7 +28,6 @@ export default function HomePage() {
             <div className="badge badge-solid">Cinderpass</div>
             <div className="small muted">Fast, polished secret handoff for modern teams.</div>
           </div>
-          <div className="header-pill">Ciphertext only</div>
         </div>
 
         <section className="hero-grid">
@@ -45,31 +61,8 @@ export default function HomePage() {
                 <div className="panel-kicker">How it works</div>
                 <h2>Credentials don't belong in chat.</h2>
               </div>
-              <div className="status-pill">Live reveal flow</div>
             </div>
-            <div className="flow-list">
-              <div className="flow-step">
-                <span>01</span>
-                <div>
-                  <strong>Wrap the secret</strong>
-                  <p>Encrypt in the browser before anything reaches the server.</p>
-                </div>
-              </div>
-              <div className="flow-step">
-                <span>02</span>
-                <div>
-                  <strong>Share a single link</strong>
-                  <p>The key fragment stays in the URL, separate from stored ciphertext.</p>
-                </div>
-              </div>
-              <div className="flow-step">
-                <span>03</span>
-                <div>
-                  <strong>Reveal once</strong>
-                  <p>Passphrase checks succeed first, then the secret is burned after retrieval.</p>
-                </div>
-              </div>
-            </div>
+            <HowItWorks />
             <div className="hero-panel-note">
               Better than pasting tokens into chat. Light enough for startup teams that need the
               fix now.
@@ -122,7 +115,20 @@ export default function HomePage() {
           </div>
         </section>
 
+        <nav className="seo-links-strip">
+          <a href="/secure-password-sharing">Secure password sharing</a>
+          <span aria-hidden="true">·</span>
+          <a href="/one-time-link">One-time links</a>
+          <span aria-hidden="true">·</span>
+          <a href="/send-secret-message">Send a secret message</a>
+          <span aria-hidden="true">·</span>
+          <a href="/one-time-secret-alternatives">One-Time Secret alternatives</a>
+          <span aria-hidden="true">·</span>
+          <a href="/faq">FAQ</a>
+        </nav>
+
         <footer className="footer">
+          <a href="/faq" className="version-badge">FAQ</a>
           <a
             href={`https://github.com/eleco/cinderpass/commit/${process.env.NEXT_PUBLIC_COMMIT_SHA}`}
             target="_blank"

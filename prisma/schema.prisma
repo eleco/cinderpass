@@ -31,10 +31,11 @@ model Secret {
   expiresAt          DateTime
   openedAt           DateTime?
   destroyedAt        DateTime?
-  passphraseRequired Boolean        @default(false)
-  passphraseSalt     String?
-  passphraseVerifier String?
-  destroyToken       String?        @unique
+  passphraseRequired  Boolean        @default(false)
+  passphraseSalt      String?
+  passphraseVerifier  String?
+  passphraseAttempts  Int            @default(0)
+  destroyToken        String?        @unique
   source             String         @default("direct")
   requestId          String?        @unique
   status             SecretStatus   @default(ACTIVE)

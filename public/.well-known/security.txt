@@ -1,0 +1,5 @@
+Contact: https://github.com/eleco/cinderpass/issues
+Preferred-Languages: en
+Canonical: https://cinderpass.com/.well-known/security.txt
+Policy: https://github.com/eleco/cinderpass/blob/main/SECURITY.md
+Expires: 2027-01-01T00:00:00.000Z
