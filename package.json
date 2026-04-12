@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/check-prisma-status.mjs",
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && vitest run && next build",
+    "db:status": "prisma migrate status",
     "db:migrate": "prisma migrate deploy",
     "start": "next start",
     "test": "vitest run",

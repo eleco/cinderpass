@@ -55,6 +55,8 @@ npx prisma migrate deploy
 npm run dev
 ```
 
+`npm run dev` now checks Prisma migration status before booting Next.js. If you pull schema changes or switch to a different database, run `npm run db:migrate` first.
+
 Required environment variables:
 
 | Variable | Description |

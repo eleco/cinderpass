@@ -124,10 +124,13 @@ export default function HomePage() {
           <span aria-hidden="true">·</span>
           <a href="/one-time-secret-alternatives">One-Time Secret alternatives</a>
           <span aria-hidden="true">·</span>
+          <a href="/architecture">Architecture</a>
+          <span aria-hidden="true">·</span>
           <a href="/faq">FAQ</a>
         </nav>
 
         <footer className="footer">
+          <a href="/architecture" className="version-badge">Architecture</a>
           <a href="/faq" className="version-badge">FAQ</a>
           <a
             href={`https://github.com/eleco/cinderpass/commit/${process.env.NEXT_PUBLIC_COMMIT_SHA}`}
