@@ -53,6 +53,10 @@ const sections = [
         a: 'The key fragment is placed in the URL after the # character (the "hash" or "fragment"). Browsers intentionally do not include the fragment in HTTP requests, so it is never transmitted to the Cinderpass server. It exists only in the share link itself.',
       },
       {
+        q: 'How is the decryption key generated?',
+        a: 'Cinderpass generates a fresh random 256-bit key in your browser using the Web Crypto API\'s cryptographically secure random number generator (`crypto.getRandomValues`). That random key is used for AES-256-GCM encryption before anything is sent to the server. If you add a passphrase, it does not replace the random key — it only protects the key fragment in the link with an additional client-side transformation.',
+      },
+      {
         q: 'What happens if someone intercepts the link in transit?',
         a: 'If the link is intercepted and opened before the intended recipient, the secret is burned on first open and the recipient will see an "already opened" error — alerting them that something went wrong. A passphrase provides an additional layer: even with the link, the attacker cannot decrypt without the passphrase.',
       },
