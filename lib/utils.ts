@@ -20,6 +20,13 @@ function normalizeBaseUrl(value?: string | null): string | null {
   }
 }
 
+function normalizeHost(value?: string | null): string | null {
+  const first = value?.split(',')[0]?.trim();
+  if (!first) return null;
+  if (first === 'undefined' || first === 'null') return null;
+  return first.replace(/\/+$/, '');
+}
+
 export function getConfiguredBaseUrl(): string {
   return (
     normalizeBaseUrl(process.env.APP_URL)
@@ -39,6 +46,17 @@ export function getBaseUrl(request?: Request): string {
   if (configured) return configured;
 
   if (request) {
+    const host = normalizeHost(
+      request.headers.get('x-forwarded-host')
+      ?? request.headers.get('host')
+      ?? request.headers.get('x-vercel-deployment-url')
+    );
+    const proto = normalizeHost(request.headers.get('x-forwarded-proto'));
+
+    if (host) {
+      return `${proto === 'http' ? 'http' : 'https'}://${host}`;
+    }
+
     return new URL(request.url).origin;
   }
 

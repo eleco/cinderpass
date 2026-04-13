@@ -111,6 +111,22 @@ describe('getBaseUrl', () => {
     process.env.APP_URL = originalAppUrl;
     process.env.NEXT_PUBLIC_APP_URL = original;
   });
+
+  it('prefers forwarded host headers over request.url origin', () => {
+    delete process.env.APP_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    delete process.env.VERCEL_URL;
+
+    const req = new Request('http://127.0.0.1:3000/api/secrets', {
+      headers: {
+        'x-forwarded-host': 'burnlink.example.com',
+        'x-forwarded-proto': 'https',
+      },
+    });
+
+    expect(getBaseUrl(req)).toBe('https://burnlink.example.com');
+  });
 });
 
 describe('getConfiguredBaseUrl', () => {
