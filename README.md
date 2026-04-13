@@ -65,6 +65,10 @@ Required environment variables:
 | `APP_URL` | Preferred canonical public base URL for links and metadata in deployed environments |
 | `NEXT_PUBLIC_APP_URL` | Optional public base URL fallback; kept for client-visible configuration compatibility |
 | `CRON_SECRET` | Bearer token protecting `/api/cron/prune` (required in production) |
+| `MAILGUN_API_KEY` | Mailgun API key for the contact form |
+| `MAILGUN_DOMAIN` | Mailgun sending domain, e.g. `mg.cinderpass.com` |
+| `MAILGUN_FROM_EMAIL` | Verified sender address used by Mailgun, e.g. `Cinderpass <contact@mg.cinderpass.com>` |
+| `MAILGUN_API_BASE_URL` | Optional Mailgun API base URL; use `https://api.eu.mailgun.net` for EU regions |
 
 Generate `CRON_SECRET` with:
 
