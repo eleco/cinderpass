@@ -75,12 +75,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const expected = Buffer.from(secret.passphraseVerifier, 'base64');
       const actual = Buffer.from(body.passphraseVerifier, 'base64');
       if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-        // Increment atomically — don't await the result to avoid leaking timing info
-        void prisma.secret.update({
+        const updatedSecret = await prisma.secret.update({
           where: { id },
           data: { passphraseAttempts: { increment: 1 } },
+          select: { passphraseAttempts: true },
         });
-        const remaining = MAX_PASSPHRASE_ATTEMPTS - secret.passphraseAttempts - 1;
+        const remaining = MAX_PASSPHRASE_ATTEMPTS - updatedSecret.passphraseAttempts;
         const msg = remaining > 0
           ? `Incorrect passphrase. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
           : 'Incorrect passphrase. This secret is now locked.';

@@ -205,7 +205,7 @@ describe('POST /api/retrieve/[id] — burn & reveal', () => {
       passphraseVerifier: storedVerifier,
       passphraseAttempts: 0,
     });
-    prismaMock.secret.update.mockResolvedValue({});
+    prismaMock.secret.update.mockResolvedValue({ passphraseAttempts: 1 });
 
     const res = await POST(makePost({ passphraseVerifier: wrongVerifier }), PARAMS);
     expect(res.status).toBe(403);
@@ -226,11 +226,38 @@ describe('POST /api/retrieve/[id] — burn & reveal', () => {
       passphraseVerifier: storedVerifier,
       passphraseAttempts: 3,
     });
-    prismaMock.secret.update.mockResolvedValue({});
+    prismaMock.secret.update.mockResolvedValue({ passphraseAttempts: 4 });
 
     const res = await POST(makePost({ passphraseVerifier: wrongVerifier }), PARAMS);
     const data = await res.json();
     expect(data.error).toContain('1 attempt');
+  });
+
+  it('waits for the passphrase attempt increment before returning', async () => {
+    const storedVerifier = btoa('correct-verifier');
+    const wrongVerifier = btoa('wrong-verifier-xx');
+
+    prismaMock.secret.findUnique.mockResolvedValue({
+      ...ACTIVE_SECRET,
+      passphraseRequired: true,
+      passphraseSalt: 'salt==',
+      passphraseVerifier: storedVerifier,
+      passphraseAttempts: 0,
+    });
+
+    prismaMock.secret.update.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ passphraseAttempts: 1 }), 25);
+        }),
+    );
+
+    const start = Date.now();
+    const res = await POST(makePost({ passphraseVerifier: wrongVerifier }), PARAMS);
+    const elapsed = Date.now() - start;
+
+    expect(res.status).toBe(403);
+    expect(elapsed).toBeGreaterThanOrEqual(20);
   });
 
   it('returns 403 locked when passphrase attempts >= 5', async () => {
