@@ -1,7 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
-import { ContactWidget } from '@/components/ContactWidget';
 import { getConfiguredBaseUrl } from '@/lib/utils';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -33,7 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${jakarta.variable} ${spaceGrotesk.variable}`}>
         {children}
-        <ContactWidget />
       </body>
     </html>
   );
