@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import type { NextConfig } from 'next';
+import { getAnalyticsConfig, INFORMATIONAL_PATHS } from './lib/analytics';
 
 function getCommitSha(): string {
   // In CI (GitHub Actions, Vercel, etc.) the SHA is provided as an env var
@@ -21,7 +22,8 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
   async headers() {
-    return [
+    const analytics = getAnalyticsConfig(process.env);
+    const rules = [
       {
         source: '/(.*)',
         headers: [
@@ -53,6 +55,17 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+    // External collection is permitted only on the explicit informational allowlist.
+    // The root, secret and request pages retain connect-src 'self'.
+    if (analytics) {
+      const collectorOrigin = new URL(analytics.endpoint).origin;
+      for (const source of INFORMATIONAL_PATHS) {
+        rules.push({ source, headers: rules[0].headers.map(header => header.key === 'Content-Security-Policy'
+          ? { ...header, value: header.value.replace("connect-src 'self'", `connect-src 'self' ${collectorOrigin}`) }
+          : header) });
+      }
+    }
+    return rules;
   },
 };
 

@@ -25,7 +25,7 @@ export default function SecurePasswordSharingPage() {
           body: 'The link works exactly once. The moment the recipient decrypts the password, the server permanently destroys the record. Opening it twice is impossible.',
         },
         {
-          title: 'No account, no tracking',
+          title: 'No account required',
           body: 'Create a secure password sharing link in seconds with no sign-up. Nothing is tied to your identity.',
         },
         {

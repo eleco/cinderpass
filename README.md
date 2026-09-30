@@ -122,3 +122,29 @@ openssl rand -hex 32
 ## License
 
 MIT
+
+
+## Optional informational-page analytics
+
+Analytics is off by default. Configure `ANALYTICS_SCRIPT_URL`, `ANALYTICS_SITE_ID`, and
+`ANALYTICS_SITE_ORIGIN` in your hosting provider's **production** environment, then rebuild
+and deploy. The origin must exactly match the canonical HTTPS origin with no trailing slash.
+Keep actual values in deployment settings or an ignored local environment file; commit only
+empty examples. Forks and self-hosted installations remain untracked unless their operators opt in.
+
+The local, auditable component sends pageviews directly to `/api/site-events` on the configured
+script URL's origin. It does **not** load or execute that remote script. Collection is limited to
+`/architecture`, `/faq`, `/one-time-link`, `/one-time-secret-alternatives`,
+`/secure-password-sharing`, and `/send-secret-message`. The homepage (which contains the creation
+forms), `/secret/*`, `/request/*`, API routes, and all unknown routes are excluded. This means the
+dashboard measures informational-page traffic, not total product usage or conversions.
+
+Only the configured site ID, random event UUID, allowlisted pathname, and external referring
+hostname are sent. No query strings, fragments, form values, internal referrers, cookies, or browser
+storage are collected. Global Privacy Control disables collection. The recipient still receives
+normal network metadata such as the visitor's IP and User-Agent. Production CSP permits the
+collector connection only on informational pages; sensitive pages retain `connect-src 'self'`.
+
+Configuration is absent from committed source, but the rendered configuration and collection
+requests are visible to visitors. The site ID is a public collection identifier, not dashboard
+access credentials. Update your deployment's privacy information to describe enabled analytics.

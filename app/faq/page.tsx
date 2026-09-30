@@ -113,7 +113,7 @@ const sections = [
       },
       {
         q: 'Is any personal information collected?',
-        a: 'No accounts, no email addresses, no tracking. IP addresses may appear in server access logs at the infrastructure level (Vercel, Neon) for standard operational purposes, but Cinderpass itself does not store or log IP addresses.',
+        a: 'No accounts or email addresses are required. The homepage and secret creation, reveal, and request flows do not send analytics events. Operators may enable aggregate pageview analytics on informational pages; it uses no cookies and excludes URL queries, fragments, and form contents. The analytics service receives normal network metadata, including IP addresses and User-Agent, and Global Privacy Control disables collection. Infrastructure access logs are separate.',
       },
     ],
   },

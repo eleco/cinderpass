@@ -15,9 +15,6 @@ export default async function RequestPage({ params }: { params: Promise<{ token:
     return (
       <main className="dest-shell">
         <div className="dest-container">
-          <div className="dest-brand">
-            <a href="/" className="badge badge-solid">Cinderpass</a>
-          </div>
           <div className="card" style={{ maxWidth: 680, margin: '0 auto' }}>
             <h1>Request not found</h1>
             <p className="muted">The request link is invalid or has been removed.</p>
@@ -32,9 +29,6 @@ export default async function RequestPage({ params }: { params: Promise<{ token:
   return (
     <main className="dest-shell">
       <div className="dest-container">
-        <div className="dest-brand">
-          <a href="/" className="badge badge-solid">Cinderpass</a>
-        </div>
         <div className="card" style={{ maxWidth: 680, margin: '0 auto' }}>
           <h1>Submit secret securely</h1>
           <p className="muted">The plaintext is encrypted in your browser before it is sent.</p>
