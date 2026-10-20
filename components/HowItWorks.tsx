@@ -20,8 +20,8 @@ const steps = [
           nothing readable to hand over.
         </p>
         <p>
-          If you add a passphrase, a second key is derived from it using PBKDF2-SHA256 (120,000
-          iterations) and applied on top. The passphrase itself is never stored anywhere.
+          New passphrase-protected links use PBKDF2-SHA256 (600,000 iterations and a random salt)
+          to encrypt the random key with AES-GCM. The passphrase is not sent to the server.
         </p>
       </>
     ),
@@ -53,7 +53,7 @@ const steps = [
   {
     n: '03',
     title: 'Reveal once',
-    summary: 'Passphrase checks succeed first, then the secret is burned after retrieval.',
+    summary: 'Passphrase checks succeed first; retrieval removes the stored encrypted payload.',
     detail: (
       <>
         <p>
@@ -62,15 +62,14 @@ const steps = [
           — the key is never sent to the server.
         </p>
         <p>
-          The burn is atomic: the server marks the record as opened in a single database write
-          that filters on <code>status = ACTIVE</code>. If two requests race simultaneously,
-          only one can win. The second receives an "already opened" error — the ciphertext is
-          only returned inside the same transaction that destroys it.
+          The server locks the database row, verifies access, and clears the encrypted payload
+          in one transaction. Only one retrieval can succeed. The response is sent after
+          that transaction commits, so a lost response cannot be retrieved again.
         </p>
         <p>
           If a passphrase was set, the recipient must enter it first. A wrong passphrase does
-          not burn the secret — it increments a per-secret attempt counter and returns an error.
-          After five wrong attempts the secret is permanently locked.
+          not burn the secret. Five failed verification attempts lock the secret, including
+          concurrent attempts, and the link alone gives no way to test guesses offline.
         </p>
       </>
     ),

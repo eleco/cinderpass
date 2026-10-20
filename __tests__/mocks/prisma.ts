@@ -1,7 +1,6 @@
 import { vi } from 'vitest';
 
-// A transaction mock that executes the callback synchronously with the same
-// mock client — mirrors how Prisma transactions work in production.
+// Unit-test transaction adapter. Real locking is covered by PostgreSQL integration tests.
 function makeTxMock(client: ReturnType<typeof makePrismaMock>) {
   return vi.fn(async (fn: (tx: typeof client) => Promise<unknown>) => fn(client));
 }
@@ -20,6 +19,7 @@ export function makePrismaMock() {
       update: vi.fn(),
       updateMany: vi.fn(),
     },
+    $queryRaw: vi.fn().mockResolvedValue([]),
     $transaction: null as unknown as ReturnType<typeof vi.fn>,
   };
   client.$transaction = makeTxMock(client);

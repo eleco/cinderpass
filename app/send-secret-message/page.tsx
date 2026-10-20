@@ -13,7 +13,7 @@ export default function SendSecretMessagePage() {
       slug="send-secret-message"
       subtitle="Send secret messages"
       title="Send a message that disappears after reading."
-      intro="Cinderpass lets you send sensitive information as an encrypted, self-destructing message. The content is encrypted in your browser before it is stored. The recipient opens the link once, reads the message, and it is gone — permanently and irreversibly."
+      intro="Cinderpass lets you send sensitive information as an encrypted, self-destructing message. The content is encrypted in your browser before it is stored. The recipient retrieves the message once; retrieval removes its encrypted contents from the live database."
       ctaLabel="Send a secret message — no account needed"
       features={[
         {
@@ -22,7 +22,7 @@ export default function SendSecretMessagePage() {
         },
         {
           title: 'Destroyed after reading',
-          body: 'The message is permanently destroyed the moment the recipient opens it. There is no second read, no copy in sent items, no trace in any inbox.',
+          body: 'The encrypted contents are removed from the live database on retrieval. The recipient can still save or copy the decrypted message.',
         },
         {
           title: 'No account required',
@@ -44,7 +44,7 @@ export default function SendSecretMessagePage() {
       faqs={[
         {
           q: 'How is this different from sending a message over Signal or WhatsApp?',
-          a: 'Signal and WhatsApp protect messages in transit but both parties retain copies. Cinderpass is for one-time delivery — the message exists exactly once. The moment the recipient reads it, it is destroyed server-side and cannot be recovered by either party.',
+          a: 'Signal and WhatsApp protect messages in transit but both parties retain copies. Cinderpass is for one-time delivery — the message exists exactly once. Retrieval removes its encrypted contents from the live database, while recipients can still retain their own copies.',
         },
         {
           q: 'Can the recipient save or screenshot the message?',
@@ -52,7 +52,7 @@ export default function SendSecretMessagePage() {
         },
         {
           q: 'Is the message truly gone after reading?',
-          a: 'The server permanently marks the record as destroyed and the decryption key was never stored, so the ciphertext is unreadable. There is no mechanism to recover the plaintext after the link is opened.',
+          a: 'The encrypted payload is removed from the live database on retrieval. Cinderpass cannot retrieve it again. Provider backups have separate retention policies, and recipients may keep copies.',
         },
         {
           q: 'What if the recipient never opens the message?',

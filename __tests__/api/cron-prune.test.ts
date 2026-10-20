@@ -77,7 +77,7 @@ describe('GET /api/cron/prune', () => {
 
     expect(prismaMock.secretRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: 'OPEN' }),
+        where: expect.objectContaining({ status: { in: ['OPEN', 'SUBMITTED'] } }),
         data: expect.objectContaining({ status: 'EXPIRED' }),
       })
     );

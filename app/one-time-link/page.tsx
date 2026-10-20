@@ -13,7 +13,7 @@ export default function OneTimeLinkPage() {
       slug="one-time-link"
       subtitle="One-time secret links"
       title="A link that works once, then disappears."
-      intro="Cinderpass generates one-time links for secrets, passwords, and credentials. The link is valid for a single retrieval. The moment it is opened, the content is decrypted in the recipient's browser and the record is permanently destroyed on the server."
+      intro="Cinderpass generates one-time links for secrets, passwords, and credentials. The link is valid for a single retrieval. Retrieval removes the encrypted contents from the live database before the recipient decrypts them in their browser."
       ctaLabel="Generate a one-time link — no account needed"
       features={[
         {
@@ -44,7 +44,7 @@ export default function OneTimeLinkPage() {
       faqs={[
         {
           q: 'What is a one-time link?',
-          a: 'A one-time link is a URL that contains an encrypted payload and can only be decrypted once. After the first successful retrieval, the underlying record is permanently destroyed. Subsequent attempts to open the link return an error.',
+          a: 'A one-time link identifies a stored encrypted payload and carries its key in the URL fragment. The server returns the payload once and removes it from the live database. Recipients can retain the decrypted result.',
         },
         {
           q: 'How is the one-time link different from a normal URL?',

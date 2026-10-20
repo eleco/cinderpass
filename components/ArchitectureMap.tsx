@@ -14,7 +14,7 @@ const surfaces = [
     points: [
       'Receives ciphertext, IV, note, expiry, and burn state.',
       'Never receives plaintext or the raw decryption key.',
-      'Marks the secret burned on first successful reveal.',
+      'Clears ciphertext and sensitive metadata atomically on retrieval.',
     ],
   },
   {
@@ -34,7 +34,7 @@ const transfers = [
     from: 'Sender browser',
     to: 'Cinderpass server',
     payload: 'ciphertext + IV + metadata',
-    note: 'The plaintext and raw AES key never cross the network.',
+    note: 'The upload contains no plaintext or raw AES key. The key is shared separately in the reveal link.',
     tone: 'warm',
   },
   {

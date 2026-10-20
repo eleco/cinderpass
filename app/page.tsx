@@ -2,6 +2,8 @@ import { SecretCreateForm, SecretRequestForm } from '@/components/forms';
 import { JsonLd } from '@/components/JsonLd';
 import { HowItWorks } from '@/components/HowItWorks';
 import { getConfiguredBaseUrl } from '@/lib/utils';
+import { REPO_URL } from '@/lib/source';
+import { SiteFooter } from '@/components/SiteFooter';
 
 const base = getConfiguredBaseUrl();
 
@@ -29,6 +31,9 @@ export default function HomePage() {
             <div className="badge badge-solid">Cinderpass</div>
             <div className="small muted">Fast, polished secret handoff for modern teams.</div>
           </div>
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="header-pill">
+            Open source · MIT ↗
+          </a>
         </div>
 
         <section className="hero-grid">
@@ -43,6 +48,9 @@ export default function HomePage() {
               <span className="tag">Browser-side encryption</span>
               <span className="tag">One-time reveal</span>
               <span className="tag">Request flow built in</span>
+              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="tag">
+                Open source on GitHub ↗
+              </a>
             </div>
             <div className="hero-metrics">
               <div className="metric-card">
@@ -83,6 +91,13 @@ export default function HomePage() {
           <div className="signal-card">
             <strong>Made for real workflows</strong>
             <span>Direct send and request-based collection live in the same surface.</span>
+          </div>
+          <div className="signal-card">
+            <strong>Open source, verifiable</strong>
+            <span>
+              MIT-licensed. Read the code, self-host it, and check the footer build hash against{' '}
+              <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>.
+            </span>
           </div>
         </section>
 
@@ -130,21 +145,7 @@ export default function HomePage() {
           <a href="/faq">FAQ</a>
         </nav>
 
-        <footer className="footer">
-          <a href="/architecture" className="version-badge">Architecture</a>
-          <a href="/faq" className="version-badge">FAQ</a>
-          <a
-            href={`https://github.com/eleco/cinderpass/commit/${process.env.NEXT_PUBLIC_COMMIT_SHA}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="version-badge"
-          >
-            {process.env.NEXT_PUBLIC_COMMIT_SHA !== 'unknown'
-              ? `build ${process.env.NEXT_PUBLIC_COMMIT_SHA?.slice(0, 7)}`
-              : 'source'}
-            {' ↗'}
-          </a>
-        </footer>
+        <SiteFooter showHome={false} />
       </div>
     </main>
   );

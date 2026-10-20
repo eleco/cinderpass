@@ -1,5 +1,6 @@
 import { JsonLd } from '@/components/JsonLd';
 import { getConfiguredBaseUrl } from '@/lib/utils';
+import { SiteFooter } from '@/components/SiteFooter';
 
 type Faq = { q: string; a: string };
 type Feature = { title: string; body: string };
@@ -81,10 +82,7 @@ export function LandingPage({
           <a href={ctaHref} className="landing-cta">{ctaLabel} →</a>
         </section>
 
-        <footer className="footer" style={{ justifyContent: 'center', gap: '1rem' }}>
-          <a href="/" className="version-badge">Home</a>
-          <a href="/faq" className="version-badge">FAQ</a>
-        </footer>
+        <SiteFooter />
       </div>
     </main>
   );

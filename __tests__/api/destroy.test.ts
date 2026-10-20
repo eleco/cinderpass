@@ -108,3 +108,12 @@ describe('POST /api/secrets/[id]/destroy', () => {
     );
   });
 });
+
+it('clears payload and credentials on manual destruction', async () => {
+  prismaMock.secret.findUnique.mockResolvedValue(ACTIVE_SECRET);
+  prismaMock.secret.update.mockResolvedValue({});
+  expect((await POST(makeRequest({ destroyToken: VALID_TOKEN }), PARAMS)).status).toBe(200);
+  expect(prismaMock.secret.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+    ciphertext: '', iv: '', note: null, passphraseSalt: null, passphraseVerifier: null, destroyToken: null,
+  }) }));
+});

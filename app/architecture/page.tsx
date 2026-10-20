@@ -1,5 +1,7 @@
+
 import type { Metadata } from 'next';
 import { ArchitectureMap } from '@/components/ArchitectureMap';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'Security Architecture',
@@ -36,11 +38,7 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        <footer className="footer" style={{ justifyContent: 'center', gap: '1rem' }}>
-          <a href="/" className="version-badge">Home</a>
-          <a href="/faq" className="version-badge">FAQ</a>
-          <a href="/architecture" className="version-badge">Architecture</a>
-        </footer>
+        <SiteFooter />
       </div>
     </main>
   );

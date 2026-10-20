@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { JsonLd } from '@/components/JsonLd';
 import { getConfiguredBaseUrl } from '@/lib/utils';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'One-Time Secret Alternatives in 2026',
@@ -342,6 +343,7 @@ export default function OTSAlternativesPage() {
           </div>
 
         </article>
+        <SiteFooter />
       </div>
     </main>
   );

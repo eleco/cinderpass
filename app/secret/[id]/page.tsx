@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { SecretReader } from '@/components/forms';
 import { SecurityExplainer } from '@/components/SecurityExplainer';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'Reveal secret',
@@ -20,6 +21,7 @@ export default async function SecretPage({ params }: { params: Promise<{ id: str
           <SecretReader id={id} />
         </div>
         <SecurityExplainer />
+        <SiteFooter />
       </div>
     </main>
   );

@@ -293,3 +293,14 @@ describe('POST /api/retrieve/[id] — burn & reveal', () => {
     );
   });
 });
+
+it('erases payload and credentials as part of the successful burn', async () => {
+  prismaMock.secret.findUnique.mockResolvedValue(ACTIVE_SECRET);
+  prismaMock.secret.updateMany.mockResolvedValue({ count: 1 });
+  const response = await POST(makePost(), PARAMS);
+  expect(response.status).toBe(200);
+  expect(response.headers.get('cache-control')).toBe('no-store');
+  expect(prismaMock.secret.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+    ciphertext: '', iv: '', note: null, passphraseSalt: null, passphraseVerifier: null, destroyToken: null,
+  }) }));
+});

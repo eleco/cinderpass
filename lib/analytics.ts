@@ -15,12 +15,20 @@ export function getAnalyticsConfig(env: Record<string, string | undefined>): Ana
   } catch { return null; }
 }
 
-export function buildPageview(config: AnalyticsConfig, location: { origin: string; pathname: string }, referrer: string, gpc: boolean, eventId: string) {
+export function buildPageview(config: AnalyticsConfig, location: { origin: string; pathname: string; search?: string }, referrer: string, gpc: boolean, eventId: string) {
   if (gpc || location.origin !== config.origin || !(INFORMATIONAL_PATHS as readonly string[]).includes(location.pathname)) return null;
   let referringHost = '';
   try {
     const url = new URL(referrer);
     if (['https:', 'http:'].includes(url.protocol) && url.hostname !== new URL(config.origin).hostname) referringHost = url.hostname;
   } catch { /* Missing referrers are normal. */ }
-  return { siteId: config.siteId, eventId, path: location.pathname, referrer: referringHost };
+  const campaign: Record<string, string> = {};
+  const params = new URLSearchParams(location.search || '');
+  for (const key of ['source', 'medium', 'campaign', 'content', 'term', 'id']) {
+    const value = (params.get('utm_' + key) || '').trim();
+    if (value.length <= 100 && /^[\p{L}\p{N} ._+()-]+$/u.test(value)) campaign[key] = value;
+  }
+  return { siteId: config.siteId, eventId, path: location.pathname, referrer: referringHost,
+    ...(Object.keys(campaign).length ? { campaign } : {}) };
+
 }

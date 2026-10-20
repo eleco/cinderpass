@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { logRouteError, requireDatabaseUrl } from '@/lib/api';
+import { ERASE_SECRET, ERASE_REQUEST } from '@/lib/erasure';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Secret" WHERE "id" = ${id} FOR UPDATE`;
       const secret = await tx.secret.findUnique({
         where: { id },
         select: { id: true, status: true, destroyToken: true, requestId: true },
@@ -35,18 +37,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const now = new Date();
       await tx.secret.update({
         where: { id },
-        data: { status: 'DESTROYED', destroyedAt: now },
+        data: { ...ERASE_SECRET, status: 'DESTROYED', destroyedAt: now },
       });
 
       if (secret.requestId) {
         await tx.secretRequest.update({
           where: { id: secret.requestId },
-          data: { status: 'DESTROYED', destroyedAt: now },
+          data: { ...ERASE_REQUEST, status: 'DESTROYED', destroyedAt: now },
         });
       }
 
       return { status: 200 as const };
-    });
+    }, { isolationLevel: 'ReadCommitted' });
 
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });

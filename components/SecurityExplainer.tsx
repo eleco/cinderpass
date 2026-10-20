@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { COMMIT_SHA, COMMIT_URL, REPO_URL } from '@/lib/source';
 
 export function SecurityExplainer() {
   const [open, setOpen] = useState(false);
@@ -29,14 +30,14 @@ export function SecurityExplainer() {
             <div className="explainer-num">2</div>
             <div>
               <strong>The key never touches the server</strong>
-              <p>The decryption key is stored only in the URL fragment (the part after <code>#</code>). Fragments are never sent to servers by browsers, so Cinderpass cannot decrypt the secret even if it wanted to.</p>
+              <p>The decryption key is stored only in the URL fragment (the part after <code>#</code>). HTTP requests omit fragments. Stored data alone cannot decrypt the secret; the browser still trusts the JavaScript served by this site.</p>
             </div>
           </div>
           <div className="explainer-row">
             <div className="explainer-num">3</div>
             <div>
               <strong>One read, then gone</strong>
-              <p>The moment the secret is successfully decrypted, the server marks it as destroyed. The ciphertext remains in the database but is permanently inaccessible.</p>
+              <p>Retrieval removes the encrypted payload from the live database before sending it to your browser. Keep the result until you have copied it; a lost response cannot be retrieved again. Provider backups have separate retention policies.</p>
             </div>
           </div>
           <div className="explainer-row">
@@ -48,17 +49,13 @@ export function SecurityExplainer() {
           </div>
           <div className="explainer-source">
             Source code at{' '}
-            <a href="https://github.com/eleco/cinderpass" target="_blank" rel="noopener noreferrer">
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
               github.com/eleco/cinderpass
             </a>
-            {process.env.NEXT_PUBLIC_COMMIT_SHA && process.env.NEXT_PUBLIC_COMMIT_SHA !== 'unknown' ? (
+            {COMMIT_URL ? (
               <> — deployed from commit{' '}
-                <a
-                  href={`https://github.com/eleco/cinderpass/commit/${process.env.NEXT_PUBLIC_COMMIT_SHA}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {process.env.NEXT_PUBLIC_COMMIT_SHA.slice(0, 7)}
+                <a href={COMMIT_URL} target="_blank" rel="noopener noreferrer">
+                  {COMMIT_SHA!.slice(0, 7)}
                 </a>
               </>
             ) : null}

@@ -28,3 +28,13 @@ describe('optional informational analytics', () => {
     expect(buildPageview(config, { origin: 'https://preview.example', pathname: '/faq' }, '', false, 'event')).toBeNull();
   });
 });
+
+
+describe('campaign attribution on informational pages', () => {
+  it('collects only six marketing tags, never secret parameters or fragments', () => {
+    const payload = buildPageview(config, { origin: config.origin, pathname: '/faq', search: '?utm_source=chatgpt.com&utm_campaign=launch&secret=hidden' }, '', false, 'event');
+    expect(payload?.campaign).toEqual({ source: 'chatgpt.com', campaign: 'launch' });
+    expect(JSON.stringify(payload)).not.toContain('hidden');
+    expect(buildPageview(config, { origin: config.origin, pathname: '/secret/id', search: '?utm_source=chatgpt.com' }, '', false, 'event')).toBeNull();
+  });
+});

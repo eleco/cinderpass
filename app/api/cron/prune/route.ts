@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logRouteError } from '@/lib/api';
+import { ERASE_SECRET, ERASE_REQUEST } from '@/lib/erasure';
 import { prisma } from '@/lib/prisma';
 
 // Called by Vercel Cron. Protected by CRON_SECRET so only the scheduler
@@ -21,12 +22,28 @@ export async function GET(request: NextRequest) {
 
     const [secrets, requests] = await Promise.all([
       prisma.secret.updateMany({
-        where: { status: 'ACTIVE', expiresAt: { lt: now } },
-        data: { status: 'EXPIRED', destroyedAt: now },
+        where: { status: 'ACTIVE', expiresAt: { lte: now } },
+        data: { ...ERASE_SECRET, status: 'EXPIRED', destroyedAt: now },
       }),
       prisma.secretRequest.updateMany({
-        where: { status: 'OPEN', expiresAt: { lt: now } },
-        data: { status: 'EXPIRED', destroyedAt: now },
+        where: { status: { in: ['OPEN', 'SUBMITTED'] }, expiresAt: { lte: now } },
+        data: { ...ERASE_REQUEST, status: 'EXPIRED', destroyedAt: now },
+      }),
+    ]);
+
+    // Also scrub tombstones written by an older app instance during a rolling
+    // deployment, or reintroduced by restoring a pre-upgrade backup.
+    await Promise.all([
+      prisma.secret.updateMany({
+        where: { status: { not: 'ACTIVE' }, OR: [
+          { ciphertext: { not: '' } }, { iv: { not: '' } }, { note: { not: null } },
+          { passphraseSalt: { not: null } }, { passphraseVerifier: { not: null } }, { destroyToken: { not: null } },
+        ] },
+        data: ERASE_SECRET,
+      }),
+      prisma.secretRequest.updateMany({
+        where: { status: { in: ['OPENED', 'EXPIRED', 'DESTROYED'] }, OR: [{ label: { not: '' } }, { note: { not: null } }] },
+        data: ERASE_REQUEST,
       }),
     ]);
 

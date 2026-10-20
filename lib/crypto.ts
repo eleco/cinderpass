@@ -1,71 +1,53 @@
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
+import { base64ToBytes, bytesToBase64 } from './encoding';
 
-function xorBytes(left: Uint8Array, right: Uint8Array): Uint8Array<ArrayBuffer> {
-  const output = new Uint8Array(new ArrayBuffer(left.length));
-  for (let index = 0; index < left.length; index += 1) {
-    output[index] = left[index] ^ right[index];
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+const INVALID_KEY = 'The passphrase or decryption link is incorrect. The secret has not been retrieved.';
+
+function xorInto<T extends Uint8Array>(target: T, mask: Uint8Array): T {
+  for (let i = 0; i < target.length; i++) target[i] ^= mask[i];
+  return target;
+}
+
+// keyMask comes from createPassphraseProof; the fragment then holds only key XOR mask.
+export async function createSecretMaterial(secret: string, keyMask?: Uint8Array) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+  const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(secret));
+  const keyFragment = keyMask ? `v2.${bytesToBase64(xorInto(keyBytes, keyMask))}` : bytesToBase64(keyBytes);
+  return { ciphertext: bytesToBase64(new Uint8Array(ciphertext)), iv: bytesToBase64(iv), keyFragment };
+}
+
+// Validate the fragment and recover the raw key BEFORE the irreversible retrieve request.
+// `protection` follows the server's protection flag, never incidental text in an input.
+export async function resolveSecretKey(
+  keyFragment: string,
+  protection: { passphrase: string; keyMask: Uint8Array | null } | null,
+): Promise<Uint8Array<ArrayBuffer>> {
+  if (!keyFragment) throw new Error('Missing decryption key fragment in the URL.');
+  if (protection && !protection.passphrase) throw new Error('This secret requires a passphrase.');
+  try {
+    if (keyFragment.startsWith('v2.')) {
+      if (!protection?.keyMask) throw new Error('Protection mismatch');
+      return xorInto(base64ToBytes(keyFragment.slice(3), 32), protection.keyMask);
+    }
+    const key = base64ToBytes(keyFragment, 32);
+    if (protection) {
+      if (protection.keyMask) throw new Error('Protection mismatch');
+      // Read-only compatibility for legacy SHA-256/XOR links. Never create them.
+      xorInto(key, new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(protection.passphrase))));
+    }
+    return key;
+  } catch {
+    throw new Error(INVALID_KEY);
   }
-  return output;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(value);
-  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-export async function createSecretMaterial(secret: string, passphrase?: string) {
-  const iv = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(12)));
-  const keyBytes = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(32)));
-  const aesKey = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    aesKey,
-    textEncoder.encode(secret),
+export async function decryptSecretMaterial(params: { ciphertext: string; iv: string; key: Uint8Array<ArrayBuffer> }) {
+  const key = await crypto.subtle.importKey('raw', params.key, 'AES-GCM', false, ['decrypt']);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(params.iv, 12) }, key, base64ToBytes(params.ciphertext),
   );
-
-  let keyFragment = bytesToBase64(keyBytes);
-
-  if (passphrase) {
-    const passphraseHash = await crypto.subtle.digest('SHA-256', textEncoder.encode(passphrase));
-    const passphraseBytes = new Uint8Array(passphraseHash);
-    const protectedBytes = xorBytes(keyBytes, passphraseBytes);
-    keyFragment = bytesToBase64(protectedBytes);
-  }
-
-  return {
-    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
-    iv: bytesToBase64(iv),
-    keyFragment,
-  };
-}
-
-export async function decryptSecretMaterial(params: {
-  ciphertext: string;
-  iv: string;
-  keyFragment: string;
-  passphrase?: string;
-}) {
-  const ciphertext = base64ToBytes(params.ciphertext);
-  const iv = base64ToBytes(params.iv);
-  let keyBytes = base64ToBytes(params.keyFragment);
-
-  if (params.passphrase) {
-    const passphraseHash = await crypto.subtle.digest('SHA-256', textEncoder.encode(params.passphrase));
-    const passphraseBytes = new Uint8Array(passphraseHash);
-    keyBytes = xorBytes(keyBytes, passphraseBytes);
-  }
-
-  const aesKey = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
-  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertext);
-
-  return textDecoder.decode(plaintext);
+  return decoder.decode(plaintext);
 }

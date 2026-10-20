@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { FaqAccordion } from '@/components/FaqAccordion';
 import { JsonLd } from '@/components/JsonLd';
 import { getConfiguredBaseUrl } from '@/lib/utils';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'FAQ',
@@ -14,7 +15,7 @@ const sections = [
     items: [
       {
         q: 'What happens when someone opens my link?',
-        a: 'The recipient\'s browser fetches the ciphertext from the server and decrypts it locally using the key fragment in the URL. The server then permanently marks the secret as opened and destroyed. After that point the link is dead — no further retrieval is possible.',
+        a: 'The server removes the encrypted contents from the live database in the retrieval transaction, then sends them to the browser for local decryption. Further retrievals fail. If the response is lost, the secret cannot be retrieved again.',
       },
       {
         q: 'Can I open the link myself to check it worked?',
@@ -34,7 +35,7 @@ const sections = [
       },
       {
         q: 'Can I cancel a secret after sending it?',
-        a: 'Yes. When you create a secret, a Destroy button appears next to the share link. Clicking it immediately and permanently destroys the secret — the link becomes invalid before anyone can open it.',
+        a: 'Yes. When you create a secret, a Destroy button appears next to the share link. If retrieval has not already won, clicking it clears the encrypted contents from the live database and invalidates the link. Provider backups have separate retention policies.',
       },
       {
         q: 'Is there a size limit for secrets?',
@@ -67,7 +68,7 @@ const sections = [
       },
       {
         q: 'What does the passphrase protect against specifically?',
-        a: 'The passphrase is derived using PBKDF2 with SHA-256 and 120,000 iterations, producing a second key that is XOR-applied to the main key. The derived verifier is stored server-side so the passphrase can be checked without burning the secret. A wrong passphrase increments a per-secret attempt counter — after 5 failures the secret is permanently locked.',
+        a: 'Someone who intercepts a protected link cannot open it without the passphrase, and cannot test guesses offline. The browser runs PBKDF2-SHA256 (600,000 iterations, random salt stored on the server) and derives two independent values: a verifier that the server checks, and a mask that hides the encryption key in the link. Every guess produces a plausible-looking key, so the only way to tell a right guess from a wrong one is the server check, and five failed checks lock the secret, including concurrent attempts. A wrong passphrase never burns the secret. Older links retain their original protection until expiry; recreate them to upgrade. Someone who has both the link and a copy of the database could still guess offline, so a strong passphrase is still worthwhile.',
       },
       {
         q: 'Can Cinderpass employees read my secrets?',
@@ -75,7 +76,7 @@ const sections = [
       },
       {
         q: 'What if two people open the link at the same time?',
-        a: 'Only one request can succeed. The burn step is an atomic database write that filters on status = ACTIVE. Whichever request commits first wins; the second sees count = 0 and gets an "already opened" error. The ciphertext is only returned inside the same transaction that marks the secret as destroyed.',
+        a: 'Only one retrieval can succeed. A database row lock serializes verification, failed attempts, and burn. The winning transaction clears the stored payload before returning it; later requests see a closed secret.',
       },
       {
         q: 'Has Cinderpass been independently audited?',
@@ -109,11 +110,11 @@ const sections = [
       },
       {
         q: 'How long is data retained?',
-        a: 'Secrets are stored until their TTL expires (maximum 7 days) or until they are opened or destroyed. An hourly background job marks expired records. Opened and destroyed records remain in the database as audit rows but the ciphertext is inaccessible by design — the key needed to decrypt it was never stored.',
+        a: 'Retrieval and destruction clear ciphertext, IV, labels, notes, passphrase proofs, and destroy tokens from live database rows. Status records remain. Expiry blocks retrieval immediately; the hourly cleanup or an expired retrieval attempt clears the payload. Database backups and recovery history have separate provider retention policies. Recipient copies cannot be erased by Cinderpass.',
       },
       {
         q: 'Is any personal information collected?',
-        a: 'No accounts or email addresses are required. The homepage and secret creation, reveal, and request flows do not send analytics events. Operators may enable aggregate pageview analytics on informational pages; it uses no cookies and excludes URL queries, fragments, and form contents. The analytics service receives normal network metadata, including IP addresses and User-Agent, and Global Privacy Control disables collection. Infrastructure access logs are separate.',
+        a: 'No accounts or email addresses are required. The homepage and secret creation, reveal, and request flows do not send analytics events. Operators may enable aggregate pageview analytics on informational pages; it uses no cookies and includes only fixed page paths, referring hostnames, optional marketing campaign tags, and coarse browser/device information. Other query parameters, fragments, and form contents are excluded. The analytics service receives normal network metadata, including IP addresses and User-Agent, and Global Privacy Control disables collection. Infrastructure access logs are separate.',
       },
     ],
   },
@@ -151,6 +152,7 @@ export default function FaqPage() {
           </p>
         </div>
         <FaqAccordion sections={sections} />
+        <SiteFooter />
       </div>
     </main>
   );

@@ -1,20 +1,12 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { createSecretMaterial, decryptSecretMaterial } from '@/lib/crypto';
-import { createPassphraseProof, derivePassphraseVerifier } from '@/lib/passphrase';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { createSecretMaterial } from '@/lib/crypto';
+import { createPassphraseProof } from '@/lib/passphrase';
+import { retrieveAndDecryptSecret } from '@/lib/reveal';
 
 type SecretCreateResponse = { url: string; id: string; destroyToken: string };
 type RequestCreateResponse = { requestUrl: string };
-
-type RetrievePayload = {
-  ciphertext: string;
-  iv: string;
-  passphraseRequired: boolean;
-  passphraseSalt: string | null;
-  note: string | null;
-  openedAt: string;
-};
 
 async function getResponseError(response: Response, fallback: string) {
   try {
@@ -96,8 +88,8 @@ export function SecretCreateForm() {
     setResultUrl('');
 
     try {
-      const encrypted = await createSecretMaterial(secret, passphrase || undefined);
       const passphraseProof = passphrase ? await createPassphraseProof(passphrase) : null;
+      const encrypted = await createSecretMaterial(secret, passphraseProof?.keyMask);
       const response = await fetch('/api/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,7 +177,7 @@ export function SecretCreateForm() {
           ) : (
             <>
               <div className="notice-instruction">
-                Send this link to the recipient. Once opened, it is permanently destroyed. Do not share it through the same channel as the secret it protects.
+                Send this link to the recipient. Retrieval removes the encrypted contents from the live database. Do not share it through the same channel as the secret it protects.
               </div>
               <div className="code">{resultUrl}</div>
               <div className="copy-row">
@@ -288,18 +280,27 @@ export function SecretReader({ id }: { id: string }) {
   const [passphraseSalt, setPassphraseSalt] = useState<string | null>(null);
   const [metaLoaded, setMetaLoaded] = useState(false);
   const [confirmPending, setConfirmPending] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
+  const revealing = useRef(false);
   const { copied, copy } = useCopyButton();
 
   const keyFragment = useMemo(() => {
     if (typeof window === 'undefined') return '';
     const hash = new URLSearchParams(window.location.hash.slice(1));
     return hash.get('k') || '';
-  }, []);
+  }, [id]);
 
   useEffect(() => {
-    fetch(`/api/retrieve/${id}`)
+    const controller = new AbortController();
+    setMetaLoaded(false);
+    setPassphrase('');
+    setSecret('');
+    setPreLabel(null);
+    setConfirmPending(false);
+    fetch(`/api/retrieve/${id}`, { signal: controller.signal, cache: 'no-store' })
       .then((r) => r.json())
       .then((data: { passphraseRequired?: boolean; passphraseSalt?: string | null; note?: string | null; error?: string }) => {
+        if (controller.signal.aborted) return;
         if (data.error) {
           setIsError(true);
           setStatus(data.error);
@@ -307,45 +308,39 @@ export function SecretReader({ id }: { id: string }) {
           setPassphraseRequired(Boolean(data.passphraseRequired));
           setPassphraseSalt(data.passphraseSalt ?? null);
           setPreLabel(data.note ?? null);
+          setMetaLoaded(true);
         }
-        setMetaLoaded(true);
       })
-      .catch(() => { setMetaLoaded(true); });
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setIsError(true); setStatus('Unable to check this secret. Reload the page to retry.');
+        }
+      });
+    return () => controller.abort();
   }, [id]);
 
   async function reveal() {
+    if (!metaLoaded || revealing.current || secret) return;
+    revealing.current = true;
+    setIsRevealing(true);
     setStatus('Fetching encrypted secret...');
     setIsError(false);
     setSecret('');
     setConfirmPending(false);
     try {
-      if (!keyFragment) throw new Error('Missing decryption key fragment in the URL.');
-      if (passphraseRequired && !passphrase) throw new Error('This secret requires a passphrase. Enter it before revealing.');
-      const passphraseVerifier =
-        passphraseRequired && passphraseSalt
-          ? await derivePassphraseVerifier(passphrase, passphraseSalt)
-          : undefined;
-
-      const response = await fetch(`/api/retrieve/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passphraseVerifier }),
+      const result = await retrieveAndDecryptSecret({
+        id, keyFragment, passphraseRequired, passphraseSalt, passphrase,
       });
-      const data = (await response.json()) as RetrievePayload | { error: string };
-      if (!response.ok || 'error' in data) throw new Error('error' in data ? data.error : 'Unable to retrieve secret');
-      const plaintext = await decryptSecretMaterial({
-        ciphertext: data.ciphertext,
-        iv: data.iv,
-        keyFragment,
-        passphrase: passphrase || undefined,
-      });
-      setLabel(data.note);
-      setSecret(plaintext);
+      setLabel(result.note);
+      setSecret(result.plaintext);
       setIsError(false);
-      setStatus('Secret opened. The server has now marked it as burned.');
+      setStatus('Secret opened. Its encrypted contents have been removed from the live database.');
     } catch (error) {
       setIsError(true);
       setStatus(getErrorMessage(error, 'Unable to decrypt secret. The passphrase or reveal link is incorrect.'));
+    } finally {
+      revealing.current = false;
+      setIsRevealing(false);
     }
   }
 
@@ -367,18 +362,18 @@ export function SecretReader({ id }: { id: string }) {
           <strong>{preLabel}</strong>
         </div>
       ) : null}
-      <div className="notice small">This secret can be opened once. After retrieval, it is permanently destroyed.</div>
-      <div>
+      <div className="notice small">Retrieval removes the stored encrypted contents. Keep this page open until you have copied the result.</div>
+      {metaLoaded && passphraseRequired && !revealed ? <div>
         <label className="label">
-          Passphrase{passphraseRequired ? <span style={{ color: 'var(--danger)', marginLeft: 4 }}>required</span> : ' (if set)'}
+          Passphrase required
         </label>
         <PassphraseInput
           value={passphrase}
           onChange={setPassphrase}
           placeholder=""
         />
-      </div>
-      <button onClick={handleRevealClick} disabled={revealed} className={confirmPending ? 'btn-confirm' : ''}>
+      </div> : null}
+      <button onClick={handleRevealClick} disabled={!metaLoaded || revealed || isRevealing} className={confirmPending ? 'btn-confirm' : ''}>
         {confirmPending ? 'Tap again to confirm — this burns the secret' : 'Reveal secret'}
       </button>
       {confirmPending && !revealed ? (
@@ -425,8 +420,8 @@ export function RequestSubmitForm({
     setDoneUrl('');
 
     try {
-      const encrypted = await createSecretMaterial(secret, passphrase || undefined);
       const passphraseProof = passphrase ? await createPassphraseProof(passphrase) : null;
+      const encrypted = await createSecretMaterial(secret, passphraseProof?.keyMask);
       const response = await fetch(`/api/requests/${token}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

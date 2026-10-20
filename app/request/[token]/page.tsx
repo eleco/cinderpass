@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { isExpired } from '@/lib/utils';
 import { RequestSubmitForm } from '@/components/forms';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'Submit secret',
@@ -40,6 +41,7 @@ export default async function RequestPage({ params }: { params: Promise<{ token:
             expiresAt={request.expiresAt.toISOString()}
           />
         </div>
+        <SiteFooter />
       </div>
     </main>
   );

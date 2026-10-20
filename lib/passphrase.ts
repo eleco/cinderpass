@@ -1,49 +1,43 @@
-const textEncoder = new TextEncoder();
+import { base64ToBytes, bytesToBase64 } from './encoding';
 
-const PASS_PHRASE_ITERATIONS = 120_000;
-const PASS_PHRASE_KEY_LENGTH = 256;
+export const PASSPHRASE_ITERATIONS = 600_000;
+const LEGACY_ITERATIONS = 120_000;
+const encoder = new TextEncoder();
+const VERIFIER_INFO = encoder.encode('cinderpass:verifier:v2');
+const KEY_MASK_INFO = encoder.encode('cinderpass:key-mask:v2');
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
+export async function derivePassphraseBits(passphrase: string, salt: Uint8Array<ArrayBuffer>, iterations = PASSPHRASE_ITERATIONS) {
+  const key = await crypto.subtle.importKey('raw', encoder.encode(passphrase), 'PBKDF2', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, key, 256));
 }
 
-function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(value);
-  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+async function expand(master: Uint8Array<ArrayBuffer>, info: Uint8Array<ArrayBuffer>) {
+  const key = await crypto.subtle.importKey('raw', master, 'HKDF', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info }, key, 256));
 }
 
-export async function derivePassphraseVerifier(passphrase: string, salt: string) {
-  const passphraseKey = await crypto.subtle.importKey(
-    'raw',
-    textEncoder.encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveBits'],
-  );
+export type PassphraseSecrets = {
+  /** Sent to the server, which compares it under the five-attempt lockout. */
+  verifier: string;
+  /** Never leaves the browser. Masks the AES key in v2 fragments; null for legacy salts. */
+  keyMask: Uint8Array<ArrayBuffer> | null;
+};
 
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: base64ToBytes(salt),
-      iterations: PASS_PHRASE_ITERATIONS,
-      hash: 'SHA-256',
-    },
-    passphraseKey,
-    PASS_PHRASE_KEY_LENGTH,
-  );
-
-  return bytesToBase64(new Uint8Array(bits));
+// The mask is unauthenticated on purpose: every guess yields a plausible key, so a guess can
+// only be tested against the ciphertext, which the server releases after verifying the proof.
+export async function derivePassphraseSecrets(passphrase: string, salt: string): Promise<PassphraseSecrets> {
+  if (salt.startsWith('v2.')) {
+    const master = await derivePassphraseBits(passphrase, base64ToBytes(salt.slice(3), 16));
+    const [verifier, keyMask] = await Promise.all([expand(master, VERIFIER_INFO), expand(master, KEY_MASK_INFO)]);
+    return { verifier: bytesToBase64(verifier), keyMask };
+  }
+  // Legacy links: 120,000-iteration verifier, SHA-256/XOR key wrapping handled in crypto.ts.
+  const bits = await derivePassphraseBits(passphrase, base64ToBytes(salt, 16), LEGACY_ITERATIONS);
+  return { verifier: bytesToBase64(bits), keyMask: null };
 }
 
 export async function createPassphraseProof(passphrase: string) {
-  const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16))));
-
-  return {
-    salt,
-    verifier: await derivePassphraseVerifier(passphrase, salt),
-  };
+  const salt = `v2.${bytesToBase64(crypto.getRandomValues(new Uint8Array(16)))}`;
+  const { verifier, keyMask } = await derivePassphraseSecrets(passphrase, salt);
+  return { salt, verifier, keyMask: keyMask! };
 }

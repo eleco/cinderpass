@@ -22,7 +22,7 @@ export default function SecurePasswordSharingPage() {
         },
         {
           title: 'Burns on first open',
-          body: 'The link works exactly once. The moment the recipient decrypts the password, the server permanently destroys the record. Opening it twice is impossible.',
+          body: 'Only one retrieval succeeds. The server removes the encrypted contents from the live database before sending them to the recipient for decryption.',
         },
         {
           title: 'No account required',
@@ -48,7 +48,7 @@ export default function SecurePasswordSharingPage() {
         },
         {
           q: 'What happens to the password after it is opened?',
-          a: 'The server atomically marks the secret as destroyed the moment the link is opened. The ciphertext remains in the database but is permanently inaccessible — the decryption key was never stored server-side.',
+          a: 'Retrieval atomically removes ciphertext and sensitive metadata from the live database. A status record remains. Provider backups and copies saved by recipients have separate retention policies.',
         },
         {
           q: 'Can I use this to share passwords with external contractors?',
