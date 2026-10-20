@@ -32,7 +32,7 @@ export default function HomePage() {
             <div className="small muted">Open-source, end-to-end encrypted secret sharing. The server never sees your key.</div>
           </div>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="header-pill">
-            Open source · MIT ↗
+            Open source ↗
           </a>
         </div>
 
@@ -54,7 +54,7 @@ export default function HomePage() {
             </div>
             <div className="hero-metrics">
               <div className="metric-card">
-                <strong>Open source, MIT</strong>
+                <strong>Open source</strong>
                 <span>Every line is public. Audit it, fork it, or self-host it.</span>
               </div>
               <div className="metric-card">
@@ -95,7 +95,7 @@ export default function HomePage() {
           <div className="signal-card">
             <strong>Open source, verifiable</strong>
             <span>
-              MIT-licensed. Read the code, self-host it, and check the footer build hash against{' '}
+              Read the code, self-host it, and check the footer build hash against{' '}
               <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>.
             </span>
           </div>

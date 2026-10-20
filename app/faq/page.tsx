@@ -97,7 +97,7 @@ const sections = [
       },
       {
         q: 'Is the source code open?',
-        a: 'Yes. The full source is available at github.com/eleco/cinderpass under the MIT licence. You are free to inspect, fork, self-host, or contribute.',
+        a: 'Yes. The full source is available at github.com/eleco/cinderpass. You are free to inspect, fork, self-host, or contribute.',
       },
     ],
   },

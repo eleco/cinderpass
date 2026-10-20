@@ -64,7 +64,8 @@ describe.each(pages)('%s page footer', (_name, load) => {
 describe('homepage open-source prominence', () => {
   it('shows the open-source pill, hero tag and feature card', async () => {
     const html = await render(SHA, async () => { const { default: Page } = await import('@/app/page'); return <Page />; });
-    expect(html).toContain('Open source · MIT');
+    expect(html).toContain('Open source ↗');
+    expect(html).not.toContain('MIT');
     expect(html).toContain('Open source on GitHub ↗');
     expect(html).toContain('Open source, verifiable');
     expect(html.split(`href="${REPO}"`).length - 1).toBeGreaterThanOrEqual(4);
