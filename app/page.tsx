@@ -29,7 +29,7 @@ export default function HomePage() {
         <div className="header">
           <div className="brand-cluster">
             <div className="badge badge-solid">Cinderpass</div>
-            <div className="small muted">Fast, polished secret handoff for modern teams.</div>
+            <div className="small muted">Open-source, end-to-end encrypted secret sharing. The server never sees your key.</div>
           </div>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="header-pill">
             Open source · MIT ↗
@@ -54,12 +54,12 @@ export default function HomePage() {
             </div>
             <div className="hero-metrics">
               <div className="metric-card">
-                <strong>Fast handoff</strong>
-                <span>Create a link in seconds and move on.</span>
+                <strong>Open source, MIT</strong>
+                <span>Every line is public. Audit it, fork it, or self-host it.</span>
               </div>
               <div className="metric-card">
-                <strong>Cleaner trails</strong>
-                <span>Keep plaintext out of Slack, docs, and support queues.</span>
+                <strong>Gone after one read</strong>
+                <span>Ciphertext is erased when opened, so nothing lingers in Slack, docs, or tickets.</span>
               </div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function HomePage() {
               <div className="card-accent">Direct share</div>
               <h3>Create a one-time secret link</h3>
             </div>
-            <p className="muted">Encrypt in the browser, store ciphertext on the server, and send a polished burn-after-read link.</p>
+            <p className="muted">Encrypt in the browser, store ciphertext on the server, and send a link that burns after one read.</p>
             <SecretCreateForm />
           </div>
 

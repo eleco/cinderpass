@@ -303,7 +303,7 @@ export default function OTSAlternativesPage() {
               <li><strong>You want to self-host on PHP with no database →</strong> PrivateBin</li>
               <li><strong>You want browser-side encryption, self-hosted, Go stack →</strong> Yopass</li>
               <li><strong>Server-side encryption is acceptable and you want the most battle-tested option →</strong> One-Time Secret</li>
-              <li><strong>You need browser-side encryption with no account and a polished handoff UI →</strong> Cinderpass</li>
+              <li><strong>You need browser-side encryption, no account, and open-source code you can verify against the deployed build →</strong> Cinderpass</li>
             </ul>
           </section>
 
