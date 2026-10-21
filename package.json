@@ -8,6 +8,7 @@
     "build": "prisma generate && prisma migrate deploy && vitest run && next build",
     "db:status": "prisma migrate status",
     "db:migrate": "prisma migrate deploy",
+    "db:scrub": "prisma db execute --schema prisma/schema.prisma --file prisma/migrations/0005_erase_closed_payloads/migration.sql",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -23,10 +24,12 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.15.29",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitest/coverage-v8": "^4.1.11",
+    "jsdom": "^26.1.0",
     "prisma": "^6.19.3",
     "typescript": "^5.8.3",
     "vitest": "^4.1.11"

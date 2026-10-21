@@ -114,7 +114,7 @@ const sections = [
       },
       {
         q: 'Is any personal information collected?',
-        a: 'No accounts or email addresses are required. The homepage and secret creation, reveal, and request flows do not send analytics events. Operators may enable aggregate pageview analytics on informational pages; it uses no cookies and includes only fixed page paths, referring hostnames, optional marketing campaign tags, and coarse browser/device information. Other query parameters, fragments, and form contents are excluded. The analytics service receives normal network metadata, including IP addresses and User-Agent, and Global Privacy Control disables collection. Infrastructure access logs are separate.',
+        a: 'No accounts or email addresses are required. The homepage and secret creation, reveal, and request flows do not send analytics events. Operators may enable aggregate pageview analytics on informational pages; it uses no cookies and includes only fixed page paths, referring hostnames, optional channel-level campaign tags (source, medium, campaign), and coarse browser/device information. Other query parameters, fragments, and form contents are excluded. The analytics service receives normal network metadata, including IP addresses and User-Agent, and Global Privacy Control disables collection. Infrastructure access logs are separate.',
       },
     ],
   },

@@ -57,8 +57,9 @@ decryption: a lost response or damaged legacy key can make the secret unrecovera
 Expiry blocks retrieval immediately. The hourly cron clears expired payloads; a retrieval
 attempt on an expired secret also clears it. Operators must configure and monitor the cron.
 Deletion here means removal from live database rows: database backups, WAL/PITR history,
-provider logs, and copies held by recipients have separate retention policies. A restore
-procedure must scrub closed and expired payloads again before exposing the restored database.
+provider logs, and copies held by recipients have separate retention policies. After
+restoring a backup, run `npm run db:scrub` (it re-applies the 0005 erasure SQL, which is
+idempotent) before exposing the restored database.
 
 Migration `0005_erase_closed_payloads` scrubs historical closed and expired rows without
 changing still-active links. Deploy it with this release (`npm run db:migrate`); the normal
@@ -198,8 +199,8 @@ forms), `/secret/*`, `/request/*`, API routes, and all unknown routes are exclud
 dashboard measures informational-page traffic, not total product usage or conversions.
 
 Only the configured site ID, random event UUID, allowlisted pathname, and external referring
-hostname are sent, plus optional bounded `utm_source`, `utm_medium`, `utm_campaign`,
-`utm_content`, `utm_term`, and `utm_id` marketing labels. Other query parameters, fragments, form
+hostname are sent, plus optional bounded `utm_source`, `utm_medium`, and `utm_campaign`
+labels. `utm_id`, `utm_term`, `utm_content`, other query parameters, fragments, form
 values, internal referrers, cookies, and browser storage are excluded. Do not put personal data in
 campaign labels. Device/browser/OS categories may be inferred from request headers without storing
 raw User-Agent strings. Global Privacy Control disables collection. The recipient still receives

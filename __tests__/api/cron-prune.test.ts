@@ -83,6 +83,17 @@ describe('GET /api/cron/prune', () => {
     );
   });
 
+  it('touches only active-expired rows, with no unbounded scan of closed history', async () => {
+    prismaMock.secret.updateMany.mockResolvedValue({ count: 0 });
+    prismaMock.secretRequest.updateMany.mockResolvedValue({ count: 0 });
+
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`) as never);
+
+    expect(prismaMock.secret.updateMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.secretRequest.updateMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.secret.updateMany.mock.calls[0][0].where).toMatchObject({ status: 'ACTIVE', expiresAt: { lte: expect.any(Date) } });
+  });
+
   it('returns 200 with zero counts when nothing is expired', async () => {
     prismaMock.secret.updateMany.mockResolvedValue({ count: 0 });
     prismaMock.secretRequest.updateMany.mockResolvedValue({ count: 0 });

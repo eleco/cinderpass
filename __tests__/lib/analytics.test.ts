@@ -31,7 +31,15 @@ describe('optional informational analytics', () => {
 
 
 describe('campaign attribution on informational pages', () => {
-  it('collects only six marketing tags, never secret parameters or fragments', () => {
+  it('drops per-recipient tags that could identify a visitor', () => {
+    const payload = buildPageview(config, { origin: config.origin, pathname: '/faq', search: '?utm_source=newsletter&utm_id=user-48213&utm_term=john%20smith&utm_content=recipient-7' }, '', false, 'event');
+    expect(payload?.campaign).toEqual({ source: 'newsletter' });
+    expect(JSON.stringify(payload)).not.toMatch(/48213|john|recipient/);
+  });
+  it('omits the campaign object when no allowed tags are present', () => {
+    expect(buildPageview(config, { origin: config.origin, pathname: '/faq', search: '?utm_id=user-1' }, '', false, 'event')).not.toHaveProperty('campaign');
+  });
+  it('collects only channel-level tags, never secret parameters or fragments', () => {
     const payload = buildPageview(config, { origin: config.origin, pathname: '/faq', search: '?utm_source=chatgpt.com&utm_campaign=launch&secret=hidden' }, '', false, 'event');
     expect(payload?.campaign).toEqual({ source: 'chatgpt.com', campaign: 'launch' });
     expect(JSON.stringify(payload)).not.toContain('hidden');

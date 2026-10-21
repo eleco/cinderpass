@@ -31,21 +31,8 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Also scrub tombstones written by an older app instance during a rolling
-    // deployment, or reintroduced by restoring a pre-upgrade backup.
-    await Promise.all([
-      prisma.secret.updateMany({
-        where: { status: { not: 'ACTIVE' }, OR: [
-          { ciphertext: { not: '' } }, { iv: { not: '' } }, { note: { not: null } },
-          { passphraseSalt: { not: null } }, { passphraseVerifier: { not: null } }, { destroyToken: { not: null } },
-        ] },
-        data: ERASE_SECRET,
-      }),
-      prisma.secretRequest.updateMany({
-        where: { status: { in: ['OPENED', 'EXPIRED', 'DESTROYED'] }, OR: [{ label: { not: '' } }, { note: { not: null } }] },
-        data: ERASE_REQUEST,
-      }),
-    ]);
+    // Closed rows are erased in the transaction that closes them, so there is no
+    // historical re-scan here. After restoring a backup, run `npm run db:scrub`.
 
     const durationMs = Date.now() - startedAt;
     console.log('[cron/prune] Prune complete', {

@@ -279,6 +279,8 @@ export function SecretReader({ id }: { id: string }) {
   const [passphraseRequired, setPassphraseRequired] = useState(false);
   const [passphraseSalt, setPassphraseSalt] = useState<string | null>(null);
   const [metaLoaded, setMetaLoaded] = useState(false);
+  const [metaRetryable, setMetaRetryable] = useState(false);
+  const [metaAttempt, setMetaAttempt] = useState(0);
   const [confirmPending, setConfirmPending] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
   const revealing = useRef(false);
@@ -292,18 +294,27 @@ export function SecretReader({ id }: { id: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    // Clear everything tied to a previous secret (or attempt) before loading this one.
     setMetaLoaded(false);
+    setMetaRetryable(false);
+    setStatus('');
+    setIsError(false);
     setPassphrase('');
     setSecret('');
+    setLabel(null);
     setPreLabel(null);
+    setPassphraseRequired(false);
+    setPassphraseSalt(null);
     setConfirmPending(false);
     fetch(`/api/retrieve/${id}`, { signal: controller.signal, cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data: { passphraseRequired?: boolean; passphraseSalt?: string | null; note?: string | null; error?: string }) => {
+      .then(async (r) => ({ httpStatus: r.status, data: await r.json() }))
+      .then(({ httpStatus, data }: { httpStatus: number; data: { passphraseRequired?: boolean; passphraseSalt?: string | null; note?: string | null; error?: string } }) => {
         if (controller.signal.aborted) return;
         if (data.error) {
           setIsError(true);
           setStatus(data.error);
+          // Rate limits and server errors are transient; not-found and already-opened are final.
+          setMetaRetryable(httpStatus === 429 || httpStatus >= 500);
         } else {
           setPassphraseRequired(Boolean(data.passphraseRequired));
           setPassphraseSalt(data.passphraseSalt ?? null);
@@ -313,11 +324,13 @@ export function SecretReader({ id }: { id: string }) {
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setIsError(true); setStatus('Unable to check this secret. Reload the page to retry.');
+          setIsError(true);
+          setStatus('Unable to check this secret. Check your connection and try again.');
+          setMetaRetryable(true);
         }
       });
     return () => controller.abort();
-  }, [id]);
+  }, [id, metaAttempt]);
 
   async function reveal() {
     if (!metaLoaded || revealing.current || secret) return;
@@ -380,6 +393,9 @@ export function SecretReader({ id }: { id: string }) {
         <button type="button" className="secondary" onClick={() => setConfirmPending(false)}>Cancel</button>
       ) : null}
       {status ? <p className={`small ${isError ? 'error' : 'success'}`}>{status}</p> : null}
+      {!metaLoaded && metaRetryable ? (
+        <button type="button" className="secondary" onClick={() => setMetaAttempt((n) => n + 1)}>Try again</button>
+      ) : null}
       {secret ? (
         <div className="output stack">
           {label ? <div className="badge">{label}</div> : null}

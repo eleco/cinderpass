@@ -3,6 +3,8 @@ export const INFORMATIONAL_PATHS = [
   '/secure-password-sharing', '/send-secret-message',
 ] as const;
 
+export const CAMPAIGN_KEYS = ['source', 'medium', 'campaign'] as const;
+
 export type AnalyticsConfig = { endpoint: string; siteId: string; origin: string };
 
 export function getAnalyticsConfig(env: Record<string, string | undefined>): AnalyticsConfig | null {
@@ -24,11 +26,14 @@ export function buildPageview(config: AnalyticsConfig, location: { origin: strin
   } catch { /* Missing referrers are normal. */ }
   const campaign: Record<string, string> = {};
   const params = new URLSearchParams(location.search || '');
-  for (const key of ['source', 'medium', 'campaign', 'content', 'term', 'id']) {
+  // Channel-level tags only: utm_id, utm_term and utm_content routinely carry
+  // per-recipient identifiers, which would make pageviews non-aggregate.
+  for (const key of CAMPAIGN_KEYS) {
     const value = (params.get('utm_' + key) || '').trim();
     if (value.length <= 100 && /^[\p{L}\p{N} ._+()-]+$/u.test(value)) campaign[key] = value;
   }
-  return { siteId: config.siteId, eventId, path: location.pathname, referrer: referringHost,
-    ...(Object.keys(campaign).length ? { campaign } : {}) };
-
+  return {
+    siteId: config.siteId, eventId, path: location.pathname, referrer: referringHost,
+    ...(Object.keys(campaign).length ? { campaign } : {}),
+  };
 }
