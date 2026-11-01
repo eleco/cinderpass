@@ -2,7 +2,6 @@
   "permissions": {
     "allow": [
       "Bash(cat -n /Users/ericleconte/work/burnlink/app/api/retrieve/[id]/route.ts)",
-      "Bash(npx prisma:*)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
       "Bash(sed -i '' \"s/title: 'FAQ — Cinderpass'/title: 'FAQ'/\" /Users/ericleconte/work/burnlink/app/faq/page.tsx)",

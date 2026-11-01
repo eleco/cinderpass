@@ -10,7 +10,7 @@ Cinderpass gives teams a clean way to pass API keys, recovery codes, and one-off
 
 1. **Encrypt in the browser** — the secret is encrypted with AES-256-GCM before it leaves the sender's device.
 2. **Key stays in the URL** — the decryption key fragment is appended after `#` in the share link. Browsers do not send URL fragments to servers, so Cinderpass cannot decrypt the secret.
-3. **One read, then gone** — the first successful retrieval atomically clears the encrypted payload and sensitive metadata from the live database before returning the ciphertext to one recipient. Concurrent requests are serialized; only one wins.
+3. **One read, then gone** — the first successful retrieval atomically deletes the encrypted payload and sensitive metadata from storage before returning the ciphertext to one recipient. Concurrent requests are serialized; only one wins.
 4. **Passphrase layer** — new protected links wrap the random AES key with AES-256-GCM using a separately salted PBKDF2-SHA256 key (600,000 iterations). The browser authenticates the wrapped key before retrieval. The server independently locks a secret after five failed verification attempts, without consuming it.
 
 ---
@@ -22,7 +22,7 @@ Cinderpass gives teams a clean way to pass API keys, recovery codes, and one-off
 - Optional passphrase protection with server-side brute-force lockout
 - Manual destroy — burn a secret you created before anyone opens it
 - Per-instance rate limiting on direct creation, request creation, and retrieval metadata endpoints
-- Hourly cron job to erase expired payloads and close expired requests
+- Expired payloads and requests are deleted automatically by Redis key expiry; no cron job
 - Build provenance — footer badge links to the exact deployed commit
 - Collapsible security model explainer on the reveal page
 
@@ -35,7 +35,7 @@ Cinderpass gives teams a clean way to pass API keys, recovery codes, and one-off
 | Encryption | AES-256-GCM, performed in the browser via Web Crypto API |
 | Key storage | URL fragment only — never sent to the server |
 | Passphrase | Versioned PBKDF2-SHA256, 600k iterations for new key wrapping and independent verifier proofs; five failed server checks lock the secret |
-| Burn mechanism | PostgreSQL row lock plus atomic payload erasure — verification, attempts, and burn are serialized |
+| Burn mechanism | One atomic Redis script per retrieval — verification, attempts, and deletion are serialized |
 | Transport | HTTPS enforced via HSTS header |
 | Headers | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
 | Input validation | Ciphertext and IV validated for base64 format, IV length (12 bytes), and max size (64 KB) |
@@ -48,22 +48,17 @@ The server stores ciphertext, IV, metadata, expiry, and a derived passphrase ver
 
 ## Payload lifecycle and security upgrade
 
-Retrieval and manual destruction clear ciphertext, IV, label/note, passphrase salt/verifier,
-and destroy token in the same database transaction as the terminal status. Linked request
-labels and notes are cleared too. IDs, relationships, status, attempt count, protection flag,
-and timestamps remain as tombstones. Retrieval burns before the network response and browser
-decryption: a lost response or damaged legacy key can make the secret unrecoverable.
+Cinderpass stores data in Redis (Upstash). A secret is one hash key whose expiry is set to the
+link's TTL, so Redis deletes expired payloads itself. Retrieval and manual destruction delete the
+key in the same atomic script that verifies the request, and the linked request (label and note)
+is deleted right after. What remains is a small marker saying why the link closed (`opened`,
+`destroyed` or `expired`), used to show the right message; it holds no payload and expires
+24 hours after the link closes. Destroy tokens and passphrase verifiers are stored only as
+SHA-256 hashes. Retrieval burns before the network response and browser decryption: a lost
+response or damaged legacy key can make the secret unrecoverable.
 
-Expiry blocks retrieval immediately. The hourly cron clears expired payloads; a retrieval
-attempt on an expired secret also clears it. Operators must configure and monitor the cron.
-Deletion here means removal from live database rows: database backups, WAL/PITR history,
-provider logs, and copies held by recipients have separate retention policies. After
-restoring a backup, run `npm run db:scrub` (it re-applies the 0005 erasure SQL, which is
-idempotent) before exposing the restored database.
-
-Migration `0005_erase_closed_payloads` scrubs historical closed and expired rows without
-changing still-active links. Deploy it with this release (`npm run db:migrate`); the normal
-build script also runs migrations. The migration does not erase provider backups.
+Deletion here means removal from the live store: provider backups or snapshots, provider logs,
+and copies held by recipients have separate retention policies.
 
 New protected links store a random 16-byte salt on the server as `v2.<base64-salt>`. The
 browser derives a master secret with PBKDF2-SHA256 (600,000 iterations) and expands it with
@@ -85,60 +80,52 @@ for the new protection. Old open browser tabs should be refreshed after deployme
 Malformed fragments are rejected locally before the burn request. Passphrase correctness is
 checked only by the server: five incorrect proofs lock the secret, even across concurrent
 requests and different application instances, and a wrong passphrase never burns it.
-Offline guessing requires both the link and a copy of the database (salt and verifier or
-ciphertext); use a strong passphrase against that case.
+Offline guessing requires both the link and a copy of the stored data (salt and ciphertext); use a strong passphrase against that case.
 Browser encryption protects stored data, not against a compromised server serving malicious
 JavaScript or a compromised recipient device.
 
-To run the real PostgreSQL lifecycle/concurrency tests, use a disposable local database:
+The integration suite runs the storage scripts against a real Redis behind Upstash's REST
+protocol. It flushes that database, requires a localhost URL, and is skipped when
+`TEST_REDIS_URL` is unset:
 
 ```bash
-DATABASE_URL=postgresql://review@127.0.0.1:55439/cinderpass_test npx prisma migrate deploy
-TEST_DATABASE_URL=postgresql://review@127.0.0.1:55439/cinderpass_test npm test -- __tests__/integration
+docker network create cp-test
+docker run -d --rm --name cp-redis --network cp-test redis:7-alpine
+docker run -d --rm --name cp-srh --network cp-test -p 8079:80 -e SRH_MODE=env \
+  -e SRH_TOKEN=test-token -e SRH_CONNECTION_STRING=redis://cp-redis:6379 hiett/serverless-redis-http
+TEST_REDIS_URL=http://localhost:8079 npm test
 ```
-
-The Prisma 6 dependency uses a scoped `deepmerge-ts` 8 override to address its recursive
-merge vulnerability without a Prisma major-version migration. Remove the override when
-Prisma ships a compatible patched dependency.
-
-The integration suite requires a localhost database whose name ends in `_test` and deletes
-its test records. It is skipped when `TEST_DATABASE_URL` is unset.
 
 ## Local setup
 
 ```bash
 cp .env.example .env
-# Fill in DATABASE_URL in .env
+# Fill in KV_REST_API_URL and KV_REST_API_TOKEN in .env
 npm install
-npx prisma migrate deploy
 npm run dev
 ```
 
-`npm run dev` now checks Prisma migration status before booting Next.js. If you pull schema changes or switch to a different database, run `npm run db:migrate` first.
+For local development without an Upstash account, run the two containers from the test section
+and use `KV_REST_API_URL=http://localhost:8079` with `KV_REST_API_TOKEN=test-token`.
 
-Required environment variables:
+Environment variables:
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `KV_REST_API_URL` | Upstash Redis REST URL (`UPSTASH_REDIS_REST_URL` also works) |
+| `KV_REST_API_TOKEN` | Upstash Redis REST token (`UPSTASH_REDIS_REST_TOKEN` also works) |
 | `APP_URL` | Preferred canonical public base URL for links and metadata in deployed environments |
 | `NEXT_PUBLIC_APP_URL` | Optional public base URL fallback; kept for client-visible configuration compatibility |
-| `CRON_SECRET` | Bearer token protecting `/api/cron/prune` (required in production) |
-
-Generate `CRON_SECRET` with:
-
-```bash
-openssl rand -hex 32
-```
 
 ---
 
 ## Deploy to Vercel
 
 1. Push the repo to GitHub and import it into Vercel.
-2. Add a Postgres database via Vercel Marketplace or connect your own.
-3. Set `APP_URL` to your production domain and `CRON_SECRET` to a random secret.
-4. Deploy. Vercel picks up `vercel.json` and schedules the hourly prune job automatically.
+2. Add an Upstash Redis database via Vercel Marketplace (it sets `KV_REST_API_URL` and
+   `KV_REST_API_TOKEN`), or set them from your own Upstash database.
+3. Set `APP_URL` to your production domain.
+4. Deploy. There are no migrations or scheduled jobs.
 
 ---
 
@@ -152,7 +139,6 @@ openssl rand -hex 32
 | `POST` | `/api/retrieve/:id` | Burn and retrieve ciphertext |
 | `POST` | `/api/requests` | Create a secret request page |
 | `POST` | `/api/requests/:token/submit` | Submit a secret in response to a request |
-| `GET` | `/api/cron/prune` | Erase expired payloads and close expired requests (called by Vercel Cron) |
 | `GET` | `/api/version` | Returns deployed commit SHA and build time |
 
 ---
@@ -160,9 +146,9 @@ openssl rand -hex 32
 ## Stack
 
 - [Next.js](https://nextjs.org) 16 — App Router, React Server Components
-- [Prisma](https://prisma.io) — ORM with PostgreSQL
+- [Upstash Redis](https://upstash.com) — serverless Redis over HTTP; key expiry and Lua scripts
 - [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) — browser-native AES-256-GCM encryption
-- Vercel — hosting and cron
+- Vercel — hosting
 
 ---
 

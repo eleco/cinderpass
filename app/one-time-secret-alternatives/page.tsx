@@ -53,7 +53,7 @@ const faqSchema = {
       name: 'Can I self-host a One-Time Secret alternative?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes. Yopass, PrivateBin, and Cinderpass are all open source and self-hostable. PrivateBin is the most widely self-hosted option. Cinderpass requires Node.js and PostgreSQL and can be deployed to any platform that supports Next.js.',
+        text: 'Yes. Yopass, PrivateBin, and Cinderpass are all open source and self-hostable. PrivateBin is the most widely self-hosted option. Cinderpass requires Node.js and Redis and can be deployed to any platform that supports Next.js.',
       },
     },
   ],

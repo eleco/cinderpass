@@ -26,7 +26,7 @@ export default function OneTimeLinkPage() {
         },
         {
           title: 'Atomic destruction',
-          body: 'The burn is a single atomic database write. If two requests race to open the same link simultaneously, only one succeeds. The other receives an "already opened" response.',
+          body: 'The burn is a single atomic operation in the database. If two requests race to open the same link simultaneously, only one succeeds. The other receives an "already opened" response.',
         },
         {
           title: 'Configurable expiry',

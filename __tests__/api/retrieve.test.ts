@@ -1,18 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { prismaMock } from '../mocks/prisma';
+import { ratelimitMock, storeMock } from '../mocks/store';
 
-vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
-vi.mock('@/lib/ratelimit', () => ({
-  checkRateLimit: vi.fn(() => true),
-  getIp: vi.fn(() => '127.0.0.1'),
-  rateLimitResponse: vi.fn(() => new Response(JSON.stringify({ error: 'rate limited' }), { status: 429 })),
-}));
+vi.mock('@/lib/store', () => storeMock);
+vi.mock('@/lib/ratelimit', () => ratelimitMock);
 
 import { GET, POST } from '@/app/api/retrieve/[id]/route';
 
 const PARAMS = { params: Promise.resolve({ id: 'secret-abc' }) };
-const FUTURE = new Date(Date.now() + 3600_000);
-const PAST = new Date(Date.now() - 1000);
 const VALID_IV = btoa(String.fromCharCode(...new Array(12).fill(0)));
 const VALID_CT = btoa('super secret payload');
 
@@ -35,272 +29,118 @@ beforeEach(() => {
 // ── GET (metadata) ──────────────────────────────────────────────────────────
 
 describe('GET /api/retrieve/[id]', () => {
-  it('returns metadata for an active, non-expired secret', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      status: 'ACTIVE',
-      expiresAt: FUTURE,
-      passphraseRequired: false,
-      passphraseSalt: null,
-      note: 'test note',
+  it('returns metadata for an active secret', async () => {
+    storeMock.getSecretMetadata.mockResolvedValue({
+      state: 'active', passphraseRequired: true, passphraseSalt: 'v2.salt', note: 'test note',
     });
 
     const res = await GET(makeGet(), PARAMS);
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.passphraseRequired).toBe(false);
-    expect(data.note).toBe('test note');
+    expect(data).toEqual({ passphraseRequired: true, passphraseSalt: 'v2.salt', note: 'test note' });
   });
 
   it('returns 404 for unknown secret', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue(null);
-
-    const res = await GET(makeGet(), PARAMS);
-    expect(res.status).toBe(404);
+    storeMock.getSecretMetadata.mockResolvedValue({ state: 'missing' });
+    expect((await GET(makeGet(), PARAMS)).status).toBe(404);
   });
 
   it('returns 410 for already-opened secret', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      status: 'OPENED',
-      expiresAt: FUTURE,
-      passphraseRequired: false,
-      passphraseSalt: null,
-      note: null,
-    });
-
+    storeMock.getSecretMetadata.mockResolvedValue({ state: 'closed', reason: 'opened' });
     const res = await GET(makeGet(), PARAMS);
     expect(res.status).toBe(410);
+    expect((await res.json()).error).toContain('already opened');
   });
 
   it('returns 410 for expired secret', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      status: 'ACTIVE',
-      expiresAt: PAST,
-      passphraseRequired: false,
-      passphraseSalt: null,
-      note: null,
-    });
-
+    storeMock.getSecretMetadata.mockResolvedValue({ state: 'closed', reason: 'expired' });
     const res = await GET(makeGet(), PARAMS);
     expect(res.status).toBe(410);
+    expect((await res.json()).error).toContain('expired');
   });
 
-  it('indicates passphrase required when set', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      status: 'ACTIVE',
-      expiresAt: FUTURE,
-      passphraseRequired: true,
-      passphraseSalt: 'saltvalue==',
-      note: null,
-    });
-
-    const res = await GET(makeGet(), PARAMS);
-    const data = await res.json();
-    expect(data.passphraseRequired).toBe(true);
-    expect(data.passphraseSalt).toBe('saltvalue==');
+  it('is rate limited', async () => {
+    ratelimitMock.checkRateLimit.mockReturnValueOnce(false);
+    expect((await GET(makeGet(), PARAMS)).status).toBe(429);
+    expect(storeMock.getSecretMetadata).not.toHaveBeenCalled();
   });
 });
 
-// ── POST (burn & reveal) ────────────────────────────────────────────────────
+// ── POST (reveal + burn) ───────────────────────────────────────────────────
 
-const ACTIVE_SECRET = {
-  id: 'secret-abc',
-  status: 'ACTIVE',
-  expiresAt: FUTURE,
-  ciphertext: VALID_CT,
-  iv: VALID_IV,
-  passphraseRequired: false,
-  passphraseSalt: null,
-  passphraseVerifier: null,
-  passphraseAttempts: 0,
-  note: null,
-  requestId: null,
-};
-
-describe('POST /api/retrieve/[id] — burn & reveal', () => {
-  it('returns ciphertext and marks secret as opened', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue(ACTIVE_SECRET);
-    prismaMock.secret.updateMany.mockResolvedValue({ count: 1 });
+describe('POST /api/retrieve/[id]', () => {
+  it('returns the payload once opened, uncached', async () => {
+    storeMock.revealSecret.mockResolvedValue({
+      state: 'opened',
+      payload: { ciphertext: VALID_CT, iv: VALID_IV, note: null, passphraseRequired: false, passphraseSalt: null },
+    });
 
     const res = await POST(makePost(), PARAMS);
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.ciphertext).toBe(VALID_CT);
-    expect(data.iv).toBe(VALID_IV);
-    expect(prismaMock.secret.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: 'secret-abc', status: 'ACTIVE' }),
-        data: expect.objectContaining({ status: 'OPENED' }),
-      })
-    );
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(data).toMatchObject({ ciphertext: VALID_CT, iv: VALID_IV, passphraseRequired: false });
+    expect(data.openedAt).toBeTruthy();
+    expect(storeMock.revealSecret).toHaveBeenCalledWith('secret-abc', null);
   });
 
-  it('the atomic burn includes expiresAt > now (prevents stale burn)', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue(ACTIVE_SECRET);
-    prismaMock.secret.updateMany.mockResolvedValue({ count: 1 });
-
-    await POST(makePost(), PARAMS);
-
-    const updateCall = prismaMock.secret.updateMany.mock.calls[0][0];
-    expect(updateCall.where.expiresAt).toBeDefined();
-    expect(updateCall.where.expiresAt.gt).toBeInstanceOf(Date);
+  it('passes the passphrase proof to the store', async () => {
+    storeMock.revealSecret.mockResolvedValue({ state: 'wrong', remaining: 4 });
+    await POST(makePost({ passphraseVerifier: 'proof==' }), PARAMS);
+    expect(storeMock.revealSecret).toHaveBeenCalledWith('secret-abc', 'proof==');
   });
 
-  it('returns 410 when atomic burn finds count=0 (race condition — already opened)', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue(ACTIVE_SECRET);
-    // Simulate another request winning the race
-    prismaMock.secret.updateMany.mockResolvedValue({ count: 0 });
-
-    const res = await POST(makePost(), PARAMS);
-    expect(res.status).toBe(410);
-    const data = await res.json();
-    expect(data.error).toContain('already opened');
+  it('drops malformed or oversized proofs', async () => {
+    storeMock.revealSecret.mockResolvedValue({ state: 'proof_required' });
+    await POST(makePost({ passphraseVerifier: 'x'.repeat(129) }), PARAMS);
+    await POST(makePost({ passphraseVerifier: 42 }), PARAMS);
+    expect(storeMock.revealSecret.mock.calls.map((call) => call[1])).toEqual([null, null]);
   });
 
   it('returns 404 for unknown secret', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue(null);
-
-    const res = await POST(makePost(), PARAMS);
-    expect(res.status).toBe(404);
+    storeMock.revealSecret.mockResolvedValue({ state: 'missing' });
+    expect((await POST(makePost(), PARAMS)).status).toBe(404);
   });
 
-  it('returns 410 for already-opened secret', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({ ...ACTIVE_SECRET, status: 'OPENED' });
-
-    const res = await POST(makePost(), PARAMS);
-    expect(res.status).toBe(410);
+  it('returns 410 for opened, destroyed or expired secrets', async () => {
+    for (const reason of ['opened', 'destroyed', 'expired']) {
+      storeMock.revealSecret.mockResolvedValue({ state: 'closed', reason });
+      expect((await POST(makePost(), PARAMS)).status).toBe(410);
+    }
   });
 
-  it('returns 410 for expired secret and marks it expired', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({ ...ACTIVE_SECRET, expiresAt: PAST });
-    prismaMock.secret.updateMany.mockResolvedValue({ count: 1 });
-
+  it('returns 400 when passphrase proof is required', async () => {
+    storeMock.revealSecret.mockResolvedValue({ state: 'proof_required' });
     const res = await POST(makePost(), PARAMS);
-    expect(res.status).toBe(410);
-    const data = await res.json();
-    expect(data.error).toContain('expired');
-  });
-
-  it('returns 400 when passphrase required but not provided', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      ...ACTIVE_SECRET,
-      passphraseRequired: true,
-      passphraseSalt: 'salt==',
-      passphraseVerifier: 'verifier==',
-    });
-
-    const res = await POST(makePost({}), PARAMS);
     expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain('Passphrase proof');
   });
 
-  it('returns 403 on wrong passphrase without burning the secret', async () => {
-    const storedVerifier = btoa('correct-verifier');
-    const wrongVerifier = btoa('wrong-verifier-xx');
-
-    prismaMock.secret.findUnique.mockResolvedValue({
-      ...ACTIVE_SECRET,
-      passphraseRequired: true,
-      passphraseSalt: 'salt==',
-      passphraseVerifier: storedVerifier,
-      passphraseAttempts: 0,
-    });
-    prismaMock.secret.update.mockResolvedValue({ passphraseAttempts: 1 });
-
-    const res = await POST(makePost({ passphraseVerifier: wrongVerifier }), PARAMS);
+  it('shows remaining attempts on a wrong passphrase', async () => {
+    storeMock.revealSecret.mockResolvedValue({ state: 'wrong', remaining: 1 });
+    const res = await POST(makePost({ passphraseVerifier: 'bad' }), PARAMS);
     expect(res.status).toBe(403);
-    const data = await res.json();
-    expect(data.error).toContain('Incorrect passphrase');
-    // The burn (updateMany) must NOT have been called
-    expect(prismaMock.secret.updateMany).not.toHaveBeenCalled();
+    expect((await res.json()).error).toBe('Incorrect passphrase. 1 attempt remaining.');
   });
 
-  it('shows remaining attempts in wrong passphrase error', async () => {
-    const storedVerifier = btoa('correct-verifier');
-    const wrongVerifier = btoa('wrong-verifier-xx');
-
-    prismaMock.secret.findUnique.mockResolvedValue({
-      ...ACTIVE_SECRET,
-      passphraseRequired: true,
-      passphraseSalt: 'salt==',
-      passphraseVerifier: storedVerifier,
-      passphraseAttempts: 3,
-    });
-    prismaMock.secret.update.mockResolvedValue({ passphraseAttempts: 4 });
-
-    const res = await POST(makePost({ passphraseVerifier: wrongVerifier }), PARAMS);
-    const data = await res.json();
-    expect(data.error).toContain('1 attempt');
+  it('says the secret is now locked after the last wrong attempt', async () => {
+    storeMock.revealSecret.mockResolvedValue({ state: 'wrong', remaining: 0 });
+    const res = await POST(makePost({ passphraseVerifier: 'bad' }), PARAMS);
+    expect((await res.json()).error).toBe('Incorrect passphrase. This secret is now locked.');
   });
 
-  it('waits for the passphrase attempt increment before returning', async () => {
-    const storedVerifier = btoa('correct-verifier');
-    const wrongVerifier = btoa('wrong-verifier-xx');
-
-    prismaMock.secret.findUnique.mockResolvedValue({
-      ...ACTIVE_SECRET,
-      passphraseRequired: true,
-      passphraseSalt: 'salt==',
-      passphraseVerifier: storedVerifier,
-      passphraseAttempts: 0,
-    });
-
-    prismaMock.secret.update.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve({ passphraseAttempts: 1 }), 25);
-        }),
-    );
-
-    const start = Date.now();
-    const res = await POST(makePost({ passphraseVerifier: wrongVerifier }), PARAMS);
-    const elapsed = Date.now() - start;
-
+  it('returns 403 for a locked secret', async () => {
+    storeMock.revealSecret.mockResolvedValue({ state: 'locked' });
+    const res = await POST(makePost({ passphraseVerifier: 'good' }), PARAMS);
     expect(res.status).toBe(403);
-    expect(elapsed).toBeGreaterThanOrEqual(20);
+    expect((await res.json()).error).toContain('locked');
   });
 
-  it('returns 403 locked when passphrase attempts >= 5', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      ...ACTIVE_SECRET,
-      passphraseRequired: true,
-      passphraseSalt: 'salt==',
-      passphraseVerifier: btoa('verifier'),
-      passphraseAttempts: 5,
-    });
-
-    const res = await POST(makePost({ passphraseVerifier: btoa('anything') }), PARAMS);
-    expect(res.status).toBe(403);
-    const data = await res.json();
-    expect(data.error).toContain('locked');
-    // No burn, no attempt increment
-    expect(prismaMock.secret.updateMany).not.toHaveBeenCalled();
-    expect(prismaMock.secret.update).not.toHaveBeenCalled();
+  it('returns 500 when the store fails', async () => {
+    storeMock.revealSecret.mockRejectedValue(new Error('down'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await POST(makePost(), PARAMS)).status).toBe(500);
   });
-
-  it('also updates linked SecretRequest status on successful burn', async () => {
-    prismaMock.secret.findUnique.mockResolvedValue({
-      ...ACTIVE_SECRET,
-      requestId: 'req-xyz',
-    });
-    prismaMock.secret.updateMany.mockResolvedValue({ count: 1 });
-    prismaMock.secretRequest.update.mockResolvedValue({});
-
-    await POST(makePost(), PARAMS);
-
-    expect(prismaMock.secretRequest.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'req-xyz' } })
-    );
-  });
-});
-
-it('erases payload and credentials as part of the successful burn', async () => {
-  prismaMock.secret.findUnique.mockResolvedValue(ACTIVE_SECRET);
-  prismaMock.secret.updateMany.mockResolvedValue({ count: 1 });
-  const response = await POST(makePost(), PARAMS);
-  expect(response.status).toBe(200);
-  expect(response.headers.get('cache-control')).toBe('no-store');
-  expect(prismaMock.secret.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
-    ciphertext: '', iv: '', note: null, passphraseSalt: null, passphraseVerifier: null, destroyToken: null,
-  }) }));
 });

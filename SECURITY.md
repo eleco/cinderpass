@@ -41,20 +41,19 @@ malicious JavaScript, browser extensions, or a compromised device.
   iterations, server-stored salt). The masked key has no authentication tag, so a link
   holder cannot test passphrase guesses offline.
 - A verifier derived independently from the same PBKDF2 output authorizes server retrieval.
-  PostgreSQL row locks serialize verification, the five-failure lockout, and the burn
-  transaction. Offline guessing requires both the link and a copy of the database, so strong
-  passphrases are still recommended.
-- Retrieval and destruction clear encrypted payloads and sensitive metadata from live rows.
-  Expiry is enforced immediately; expired payloads are cleared on attempted retrieval or by
-  the hourly cron. Tombstone IDs, status, relationships, flags, counters, and timestamps remain.
-- Backup/PITR/WAL and infrastructure-log retention are controlled by the hosting provider.
-  Removing a live row value does not promise forensic erasure of historical storage.
+  A single atomic Redis script serializes verification, the five-failure lockout, and the
+  burn. The server stores the verifier and destroy token only as SHA-256 hashes. Offline
+  guessing requires both the link and a copy of the stored data, so strong passphrases are
+  still recommended.
+- Retrieval and destruction delete the stored secret, and its linked request, from Redis.
+  Expiry is enforced immediately and Redis deletes expired keys itself. A marker recording why
+  a link closed (no payload, no metadata) remains for 24 hours to show the right message.
+- Snapshot/backup and infrastructure-log retention are controlled by the hosting provider.
+  Deleting a live key does not promise forensic erasure of historical storage.
 - Retrieval commits the burn before browser decryption or successful network delivery.
   Lost responses and damaged legacy key fragments may be unrecoverable.
 - Existing unversioned links retain their legacy SHA-256/XOR wrapping and 120,000-iteration
   PBKDF2 verifier. They remain readable until expired or consumed; recreate them to upgrade.
-- Migration `0005_erase_closed_payloads` scrubs historical closed and expired rows. Operators
-  must also apply equivalent scrubbing after restoring older database backups.
 
 The full source is public. The build commit is informational provenance, not cryptographic
 attestation that the server is serving that source. See the README for protocol and deployment details.

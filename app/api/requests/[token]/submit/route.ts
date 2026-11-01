@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logRouteError, requireDatabaseUrl, validateCiphertextPayload } from '@/lib/api';
-import { prisma } from '@/lib/prisma';
-import { getBaseUrl, isExpired, sanitizeNote } from '@/lib/utils';
+import { logRouteError, requireStore, validateCiphertextPayload } from '@/lib/api';
+import { submitToRequest } from '@/lib/store';
+import { getBaseUrl, sanitizeNote } from '@/lib/utils';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
   try {
-    const databaseConfigError = requireDatabaseUrl();
-    if (databaseConfigError) {
-      return databaseConfigError;
+    const configError = requireStore();
+    if (configError) {
+      return configError;
     }
 
     const body = (await request.json()) as {
@@ -32,49 +32,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { ciphertext, iv } = body as { ciphertext: string; iv: string };
 
-    const requestRow = await prisma.secretRequest.findUnique({ where: { token } });
-    if (!requestRow) {
+    const result = await submitToRequest(token, {
+      ciphertext,
+      iv,
+      note: sanitizeNote(body.note),
+      passphraseRequired: Boolean(body.passphraseRequired),
+      passphraseSalt: body.passphraseSalt ?? null,
+      passphraseVerifier: body.passphraseVerifier ?? null,
+    });
+
+    if (result.state === 'missing') {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
-    if (requestRow.status !== 'OPEN' || isExpired(requestRow.expiresAt)) {
+    if (result.state === 'closed') {
       return NextResponse.json({ error: 'Request is closed' }, { status: 410 });
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const requestLatest = await tx.secretRequest.findUnique({ where: { token } });
-      if (!requestLatest || requestLatest.status !== 'OPEN' || isExpired(requestLatest.expiresAt)) {
-        throw new Error('Request is closed');
-      }
-
-      const secret = await tx.secret.create({
-        data: {
-          ciphertext,
-          iv,
-          note: sanitizeNote(body.note) || requestLatest.label,
-          expiresAt: requestLatest.expiresAt,
-          passphraseRequired: Boolean(body.passphraseRequired),
-          passphraseSalt: body.passphraseSalt ?? null,
-          passphraseVerifier: body.passphraseVerifier ?? null,
-          source: 'request',
-          requestId: requestLatest.id,
-        },
-        select: { id: true },
-      });
-
-      await tx.secretRequest.update({
-        where: { id: requestLatest.id },
-        data: { status: 'SUBMITTED', submittedAt: now },
-      });
-
-      return secret;
-    });
-
-    return NextResponse.json({ revealUrl: `${getBaseUrl(request)}/secret/${created.id}` });
+    return NextResponse.json({ revealUrl: `${getBaseUrl(request)}/secret/${result.id}` });
   } catch (error) {
     logRouteError(`POST /api/requests/${token}/submit`, error);
-    const message = error instanceof Error ? error.message : 'Unable to submit secret';
-    const status = message === 'Request is closed' ? 410 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: 'Unable to submit secret' }, { status: 500 });
   }
 }

@@ -62,9 +62,9 @@ const steps = [
           — the key is never sent to the server.
         </p>
         <p>
-          The server locks the database row, verifies access, and clears the encrypted payload
-          in one transaction. Only one retrieval can succeed. The response is sent after
-          that transaction commits, so a lost response cannot be retrieved again.
+          The server verifies access and deletes the encrypted payload in one atomic step.
+          Only one retrieval can succeed. The response is sent after the payload is deleted,
+          so a lost response cannot be retrieved again.
         </p>
         <p>
           If a passphrase was set, the recipient must enter it first. A wrong passphrase does

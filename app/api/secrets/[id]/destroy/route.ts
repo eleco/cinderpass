@@ -1,57 +1,31 @@
 import { NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
-import { logRouteError, requireDatabaseUrl } from '@/lib/api';
-import { ERASE_SECRET, ERASE_REQUEST } from '@/lib/erasure';
-import { prisma } from '@/lib/prisma';
+import { logRouteError, requireStore } from '@/lib/api';
+import { destroySecret } from '@/lib/store';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   try {
-    const databaseConfigError = requireDatabaseUrl();
-    if (databaseConfigError) return databaseConfigError;
+    const configError = requireStore();
+    if (configError) return configError;
 
     const body = (await request.json().catch(() => ({}))) as { destroyToken?: string };
 
-    if (!body.destroyToken) {
+    if (typeof body.destroyToken !== 'string' || !body.destroyToken) {
       return NextResponse.json({ error: 'destroyToken is required' }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "Secret" WHERE "id" = ${id} FOR UPDATE`;
-      const secret = await tx.secret.findUnique({
-        where: { id },
-        select: { id: true, status: true, destroyToken: true, requestId: true },
-      });
+    const result = await destroySecret(id, body.destroyToken);
 
-      if (!secret) return { error: 'Secret not found', status: 404 as const };
-      if (secret.status !== 'ACTIVE') return { error: 'Secret already opened or destroyed', status: 410 as const };
-      if (!secret.destroyToken) return { error: 'This secret cannot be destroyed via token', status: 409 as const };
-
-      const expected = Buffer.from(secret.destroyToken, 'hex');
-      const actual = Buffer.from(body.destroyToken!, 'hex');
-      if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-        return { error: 'Invalid destroy token', status: 403 as const };
-      }
-
-      const now = new Date();
-      await tx.secret.update({
-        where: { id },
-        data: { ...ERASE_SECRET, status: 'DESTROYED', destroyedAt: now },
-      });
-
-      if (secret.requestId) {
-        await tx.secretRequest.update({
-          where: { id: secret.requestId },
-          data: { ...ERASE_REQUEST, status: 'DESTROYED', destroyedAt: now },
-        });
-      }
-
-      return { status: 200 as const };
-    }, { isolationLevel: 'ReadCommitted' });
-
-    if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
+    switch (result.state) {
+      case 'missing':
+        return NextResponse.json({ error: 'Secret not found' }, { status: 404 });
+      case 'closed':
+        return NextResponse.json({ error: 'Secret already opened or destroyed' }, { status: 410 });
+      case 'no_token':
+        return NextResponse.json({ error: 'This secret cannot be destroyed via token' }, { status: 409 });
+      case 'forbidden':
+        return NextResponse.json({ error: 'Invalid destroy token' }, { status: 403 });
     }
 
     return NextResponse.json({ destroyed: true });

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
+import { redisConfig } from './redis';
 
-export function requireDatabaseUrl() {
-  if (process.env.DATABASE_URL) {
+export function requireStore() {
+  if (redisConfig()) {
     return null;
   }
 
   return NextResponse.json(
-    { error: 'Server is not configured: DATABASE_URL is missing.' },
+    { error: 'Server is not configured: KV_REST_API_URL and KV_REST_API_TOKEN are missing.' },
     { status: 503 },
   );
 }

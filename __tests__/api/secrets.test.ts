@@ -1,13 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { prismaMock } from '../mocks/prisma';
+import { ratelimitMock, storeMock } from '../mocks/store';
 
-vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
+vi.mock('@/lib/store', () => storeMock);
 // Disable rate limiting for all route tests
-vi.mock('@/lib/ratelimit', () => ({
-  checkRateLimit: vi.fn(() => true),
-  getIp: vi.fn(() => '127.0.0.1'),
-  rateLimitResponse: vi.fn(() => new Response(JSON.stringify({ error: 'rate limited' }), { status: 429 })),
-}));
+vi.mock('@/lib/ratelimit', () => ratelimitMock);
 
 import { POST } from '@/app/api/secrets/route';
 
@@ -22,42 +18,38 @@ function makeRequest(body: Record<string, unknown>) {
   });
 }
 
+const stored = () => storeMock.createSecret.mock.calls[0][0];
+
 beforeEach(() => {
   vi.clearAllMocks();
+  storeMock.createSecret.mockResolvedValue('secret-123');
 });
 
 describe('POST /api/secrets', () => {
   it('creates a secret and returns url + destroyToken', async () => {
-    prismaMock.secret.create.mockResolvedValue({ id: 'secret-123' });
-
     const res = await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV }) as never);
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data.url).toContain('/secret/secret-123');
-    expect(data.destroyToken).toBeTruthy();
+    expect(data.destroyToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(storeMock.createSecret.mock.calls[0][1]).toBe(data.destroyToken);
     expect(data.id).toBe('secret-123');
   });
 
   it('stores the correct TTL when ttlHours is 1', async () => {
-    prismaMock.secret.create.mockResolvedValue({ id: 'secret-ttl' });
-
     await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV, ttlHours: 1 }) as never);
 
-    const createCall = prismaMock.secret.create.mock.calls[0][0];
-    const diff = createCall.data.expiresAt.getTime() - Date.now();
+    const diff = stored().expiresAt.getTime() - Date.now();
     // Should be within 1 hour ± 5 seconds
     expect(diff).toBeGreaterThan((3600 - 5) * 1000);
     expect(diff).toBeLessThan((3600 + 5) * 1000);
   });
 
   it('defaults to 24h TTL for unknown ttlHours', async () => {
-    prismaMock.secret.create.mockResolvedValue({ id: 'secret-default' });
-
     await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV, ttlHours: 999 }) as never);
 
-    const createCall = prismaMock.secret.create.mock.calls[0][0];
-    const diff = createCall.data.expiresAt.getTime() - Date.now();
+    const diff = stored().expiresAt.getTime() - Date.now();
     expect(diff).toBeGreaterThan((86400 - 5) * 1000);
     expect(diff).toBeLessThan((86400 + 5) * 1000);
   });
@@ -91,11 +83,10 @@ describe('POST /api/secrets', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toContain('passphrase');
+    expect(storeMock.createSecret).not.toHaveBeenCalled();
   });
 
   it('accepts passphrase with salt and verifier', async () => {
-    prismaMock.secret.create.mockResolvedValue({ id: 'secret-pass' });
-
     const res = await POST(makeRequest({
       ciphertext: VALID_CT,
       iv: VALID_IV,
@@ -105,18 +96,29 @@ describe('POST /api/secrets', () => {
     }) as never);
 
     expect(res.status).toBe(200);
-    const createCall = prismaMock.secret.create.mock.calls[0][0];
-    expect(createCall.data.passphraseRequired).toBe(true);
-    expect(createCall.data.passphraseSalt).toBe('somesalt==');
+    expect(stored()).toMatchObject({ passphraseRequired: true, passphraseSalt: 'somesalt==', passphraseVerifier: 'someverifier==' });
   });
 
   it('truncates note to 140 characters', async () => {
-    prismaMock.secret.create.mockResolvedValue({ id: 'secret-note' });
-    const longNote = 'a'.repeat(200);
+    await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV, note: 'a'.repeat(200) }) as never);
+    expect(stored().note).toHaveLength(140);
+  });
 
-    await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV, note: longNote }) as never);
+  it('returns 503 when Redis is not configured', async () => {
+    const { KV_REST_API_URL } = process.env;
+    delete process.env.KV_REST_API_URL;
+    try {
+      const res = await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV }) as never);
+      expect(res.status).toBe(503);
+    } finally {
+      process.env.KV_REST_API_URL = KV_REST_API_URL;
+    }
+  });
 
-    const createCall = prismaMock.secret.create.mock.calls[0][0];
-    expect(createCall.data.note).toHaveLength(140);
+  it('returns 500 when the store fails', async () => {
+    storeMock.createSecret.mockRejectedValue(new Error('down'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await POST(makeRequest({ ciphertext: VALID_CT, iv: VALID_IV }) as never);
+    expect(res.status).toBe(500);
   });
 });

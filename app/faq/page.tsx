@@ -15,7 +15,7 @@ const sections = [
     items: [
       {
         q: 'What happens when someone opens my link?',
-        a: 'The server removes the encrypted contents from the live database in the retrieval transaction, then sends them to the browser for local decryption. Further retrievals fail. If the response is lost, the secret cannot be retrieved again.',
+        a: 'The server deletes the encrypted contents from storage in the same atomic step that verifies the retrieval, then sends them to the browser for local decryption. Further retrievals fail. If the response is lost, the secret cannot be retrieved again.',
       },
       {
         q: 'Can I open the link myself to check it worked?',
@@ -76,7 +76,7 @@ const sections = [
       },
       {
         q: 'What if two people open the link at the same time?',
-        a: 'Only one retrieval can succeed. A database row lock serializes verification, failed attempts, and burn. The winning transaction clears the stored payload before returning it; later requests see a closed secret.',
+        a: 'Only one retrieval can succeed. A single atomic Redis script handles verification, failed attempts, and burn, so concurrent requests are serialized. The winning request deletes the stored payload before returning it; later requests see a closed secret.',
       },
       {
         q: 'Has Cinderpass been independently audited?',
@@ -93,7 +93,7 @@ const sections = [
       },
       {
         q: 'Can I self-host Cinderpass?',
-        a: 'Yes. Cinderpass is a standard Next.js application backed by PostgreSQL. Clone the repository, set the three environment variables in .env.example, run the Prisma migrations, and deploy anywhere that runs Node.js. Vercel with a Postgres add-on is the fastest path.',
+        a: 'Yes. Cinderpass is a standard Next.js application backed by Redis (Upstash). Clone the repository, set the environment variables in .env.example, and deploy anywhere that runs Node.js. There are no migrations or scheduled jobs. Vercel with the Upstash Redis integration is the fastest path.',
       },
       {
         q: 'Is the source code open?',
@@ -110,7 +110,7 @@ const sections = [
       },
       {
         q: 'How long is data retained?',
-        a: 'Retrieval and destruction clear ciphertext, IV, labels, notes, passphrase proofs, and destroy tokens from live database rows. Status records remain. Expiry blocks retrieval immediately; the hourly cleanup or an expired retrieval attempt clears the payload. Database backups and recovery history have separate provider retention policies. Recipient copies cannot be erased by Cinderpass.',
+        a: 'Retrieval and destruction delete the stored secret — ciphertext, IV, label, note, passphrase data, and destroy token — and its linked request. Only a marker saying why the link closed remains, for 24 hours. Expiry blocks retrieval immediately, and expired secrets are deleted automatically at their expiry time. Provider backups have separate retention policies. Recipient copies cannot be erased by Cinderpass.',
       },
       {
         q: 'Is any personal information collected?',

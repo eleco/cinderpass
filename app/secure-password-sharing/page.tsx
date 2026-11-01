@@ -48,7 +48,7 @@ export default function SecurePasswordSharingPage() {
         },
         {
           q: 'What happens to the password after it is opened?',
-          a: 'Retrieval atomically removes ciphertext and sensitive metadata from the live database. A status record remains. Provider backups and copies saved by recipients have separate retention policies.',
+          a: 'Retrieval atomically deletes the ciphertext and its metadata from storage. Only a short-lived marker saying the link was opened remains. Provider backups and copies saved by recipients have separate retention policies.',
         },
         {
           q: 'Can I use this to share passwords with external contractors?',
