@@ -17,7 +17,7 @@ function mockMetadata(...responses: Meta[]) {
 }
 
 const ok = (body: object = {}) => ({ status: 200, body: { passphraseRequired: false, passphraseSalt: null, note: null, ...body } });
-const revealButton = () => screen.getByRole('button', { name: /reveal secret/i });
+const revealButton = () => screen.getByRole('button', { name: /show the message/i });
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -68,11 +68,11 @@ describe('SecretReader switching secrets', () => {
   it('does not carry a passphrase requirement over to an unprotected secret', async () => {
     mockMetadata(ok({ passphraseRequired: true, passphraseSalt: 'v2.AAAAAAAAAAAAAAAAAAAAAA==' }), ok());
     const { rerender } = render(<SecretReader id="protected" />);
-    expect(await screen.findByText('Passphrase required')).toBeTruthy();
+    expect(await screen.findByText('Enter the password they gave you')).toBeTruthy();
 
     await act(async () => { rerender(<SecretReader id="plain" />); });
     await waitFor(() => expect(revealButton()).toHaveProperty('disabled', false));
-    expect(screen.queryByText('Passphrase required')).toBeNull();
+    expect(screen.queryByText('Enter the password they gave you')).toBeNull();
   });
 });
 

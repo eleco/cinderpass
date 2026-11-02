@@ -16,7 +16,7 @@ const appSchema = {
   operatingSystem: 'Web',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Share passwords, API keys, and credentials with a one-time link. Encrypted in your browser. Burns after reading. Free and open source.',
+    'Send a private message that disappears after it is read: a door code, where you left the key, a Wi-Fi or account password. Encrypted in your browser. Free, no account needed.',
 };
 
 export default function HomePage() {
@@ -29,7 +29,7 @@ export default function HomePage() {
         <div className="header">
           <div className="brand-cluster">
             <div className="badge badge-solid">Cinderpass</div>
-            <div className="small muted">Open-source, end-to-end encrypted secret sharing. The server never sees your key.</div>
+            <div className="small muted">Private notes that disappear once they're read.</div>
           </div>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="header-pill">
             Open source ↗
@@ -38,105 +38,86 @@ export default function HomePage() {
 
         <section className="hero-grid">
           <div className="hero-copy">
-            <h1>Share sensitive credentials without leaving plaintext behind.</h1>
+            <h1>Tell someone a secret. Then it's gone.</h1>
             <p>
-              Cinderpass gives ops, support, and engineering teams a cleaner way to pass API keys,
-              recovery codes, and one-off access without dropping sensitive data into inboxes,
-              chats, or ticket threads.
+              Where you left the spare key. The door code. The Wi-Fi password. Where to meet.
+              Write it here and you get a link to send. Your friend opens it once, and the
+              message disappears. It won't sit in your texts, emails or chat history.
             </p>
             <div className="hero-tags">
-              <span className="tag">Browser-side encryption</span>
-              <span className="tag">One-time reveal</span>
-              <span className="tag">Request flow built in</span>
+              <span className="tag">Free</span>
+              <span className="tag">No account or app</span>
               <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="tag">
                 Open source on GitHub ↗
               </a>
             </div>
-            <div className="hero-metrics">
-              <div className="metric-card">
-                <strong>Open source</strong>
-                <span>Every line is public. Audit it, fork it, or self-host it.</span>
-              </div>
-              <div className="metric-card">
-                <strong>Gone after one read</strong>
-                <span>Ciphertext is erased when opened, so nothing lingers in Slack, docs, or tickets.</span>
-              </div>
-            </div>
           </div>
 
+          <div className="card form-card form-card-warm hero-form">
+            <div className="card-header">
+              <div className="card-accent">Send a secret</div>
+              <h3>Write your message</h3>
+            </div>
+            <SecretCreateForm />
+          </div>
+
+          <div className="signal-strip hero-signals">
+            <div className="signal-card">
+              <strong>Only your friend can read it</strong>
+              <span>The message is scrambled on your phone or computer before it is sent. We can't read it.</span>
+            </div>
+            <div className="signal-card">
+              <strong>Read once, then gone</strong>
+              <span>Once it's opened, it's deleted. If nobody opens it, it deletes itself anyway.</span>
+            </div>
+            <div className="signal-card">
+              <strong>Sent it to the wrong person?</strong>
+              <span>Delete the message yourself, any time before it's opened.</span>
+            </div>
+            <div className="signal-card">
+              <strong>Open for anyone to check</strong>
+              <span>
+                All of the code is public on{' '}
+                <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>, so
+                security experts can check how it works.
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-top">
           <div className="hero-panel">
             <div className="hero-panel-top">
               <div>
                 <div className="panel-kicker">How it works</div>
-                <h2>Credentials don't belong in chat.</h2>
+                <h2>Three steps. No trace.</h2>
               </div>
             </div>
             <HowItWorks />
             <div className="hero-panel-note">
-              Better than pasting tokens into chat. Light enough for startup teams that need the
-              fix now.
+              Want the technical details? Tap any step.
             </div>
-          </div>
-        </section>
-
-        <section className="signal-strip">
-          <div className="signal-card">
-            <strong>Zero plaintext storage</strong>
-            <span>The server handles ciphertext and metadata, not the secret itself.</span>
-          </div>
-          <div className="signal-card">
-            <strong>Passphrase-aware reveal</strong>
-            <span>Wrong passphrases no longer consume the secret.</span>
-          </div>
-          <div className="signal-card">
-            <strong>Made for real workflows</strong>
-            <span>Direct send and request-based collection live in the same surface.</span>
-          </div>
-          <div className="signal-card">
-            <strong>Open source, verifiable</strong>
-            <span>
-              Read the code, self-host it, and check the footer build hash against{' '}
-              <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>.
-            </span>
-          </div>
-        </section>
-
-        <section className="section-head">
-          <div>
-            <h2>Two flows. Same clean handoff.</h2>
-          </div>
-          <p className="muted">
-            Send a secret immediately, or open a secure request page when you need someone else to
-            hand credentials back to you.
-          </p>
-        </section>
-
-        <section className="grid">
-          <div className="card form-card form-card-warm">
-            <div className="card-header">
-              <div className="card-accent">Direct share</div>
-              <h3>Create a one-time secret link</h3>
-            </div>
-            <p className="muted">Encrypt in the browser, store ciphertext on the server, and send a link that burns after one read.</p>
-            <SecretCreateForm />
           </div>
 
           <div className="card form-card form-card-cool">
             <div className="card-header">
-              <div className="card-accent">Inbound request</div>
-              <h3>Create a secure request page</h3>
+              <div className="card-accent">Ask for a secret</div>
+              <h3>Need someone to send you something?</h3>
             </div>
-            <p className="muted">Ask for a password or token through a dedicated handoff page instead of another messy back-and-forth.</p>
+            <p className="muted">
+              Make a link and send it to them. They type the answer on a private page, and only
+              you get to read it.
+            </p>
             <SecretRequestForm />
           </div>
         </section>
 
         <nav className="seo-links-strip">
-          <a href="/secure-password-sharing">Secure password sharing</a>
+          <a href="/send-secret-message">Send a secret message</a>
+          <span aria-hidden="true">·</span>
+          <a href="/secure-password-sharing">Share a password</a>
           <span aria-hidden="true">·</span>
           <a href="/one-time-link">One-time links</a>
-          <span aria-hidden="true">·</span>
-          <a href="/send-secret-message">Send a secret message</a>
           <span aria-hidden="true">·</span>
           <a href="/one-time-secret-alternatives">One-Time Secret alternatives</a>
           <span aria-hidden="true">·</span>

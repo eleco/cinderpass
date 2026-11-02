@@ -4,7 +4,7 @@ import { RequestSubmitForm } from '@/components/forms';
 import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Submit secret',
+  title: 'Send a secret',
 };
 
 function Notice({ title, body }: { title: string; body: string }) {
@@ -25,18 +25,18 @@ export default async function RequestPage({ params }: { params: Promise<{ token:
   const request = await getRequest(token);
 
   if (request.state === 'missing') {
-    return <Notice title="Request not found" body="The request link is invalid or has been removed." />;
+    return <Notice title="Request not found" body="This link doesn't work. It may have been mistyped or removed." />;
   }
   if (request.state === 'closed') {
-    return <Notice title="Request closed" body="This request has expired or its secret has already been delivered." />;
+    return <Notice title="Link closed" body="This link has expired, or the answer has already been sent." />;
   }
 
   return (
     <main className="dest-shell">
       <div className="dest-container">
         <div className="card" style={{ maxWidth: 680, margin: '0 auto' }}>
-          <h1>Submit secret securely</h1>
-          <p className="muted">The plaintext is encrypted in your browser before it is sent.</p>
+          <h1>Someone asked you for a secret</h1>
+          <p className="muted">Your answer is locked on your device before it is sent. Only the person who asked can open it.</p>
           <RequestSubmitForm
             token={token}
             label={request.label}

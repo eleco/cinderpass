@@ -5,8 +5,8 @@ import { useState } from 'react';
 const steps = [
   {
     n: '01',
-    title: 'Wrap the secret',
-    summary: 'Encrypt in the browser before anything reaches the server.',
+    title: 'Write your message',
+    summary: 'It is scrambled on your device before it is sent, so we can never read it.',
     detail: (
       <>
         <p>
@@ -28,8 +28,8 @@ const steps = [
   },
   {
     n: '02',
-    title: 'Share a single link',
-    summary: 'The key fragment stays in the URL, separate from stored ciphertext.',
+    title: 'Send the link',
+    summary: 'Text it, email it or message it. The key to unscramble it is only in the link.',
     detail: (
       <>
         <p>
@@ -52,8 +52,8 @@ const steps = [
   },
   {
     n: '03',
-    title: 'Reveal once',
-    summary: 'Passphrase checks succeed first; retrieval removes the stored encrypted payload.',
+    title: 'They read it once',
+    summary: 'Your friend opens the link and reads the message. Then it is deleted for good.',
     detail: (
       <>
         <p>

@@ -15,11 +15,11 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Cinderpass — Secure One-Time Secret & Password Sharing',
+    default: 'Cinderpass — Send a Secret Message That Disappears',
     template: '%s — Cinderpass',
   },
   description:
-    'Share passwords, API keys, and credentials with a one-time link. Encrypted in your browser. Burns after reading. Free and open source.',
+    'Send a private message that disappears after it is read: a door code, where you left the key, a Wi-Fi or account password. Encrypted in your browser. Free, no account needed.',
   metadataBase: new URL(getConfiguredBaseUrl()),
   openGraph: {
     siteName: 'Cinderpass',

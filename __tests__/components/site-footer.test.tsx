@@ -67,7 +67,7 @@ describe('homepage open-source prominence', () => {
     expect(html).toContain('Open source ↗');
     expect(html).not.toContain('MIT');
     expect(html).toContain('Open source on GitHub ↗');
-    expect(html).toContain('Open source, verifiable');
+    expect(html).toContain('Open for anyone to check');
     expect(html.split(`href="${REPO}"`).length - 1).toBeGreaterThanOrEqual(4);
   });
 });
