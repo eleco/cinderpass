@@ -127,7 +127,8 @@ Production runs on Vercel (project `cinderpass`, domains `www.cinderpass.com` an
 1. Set `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`), the Mailgun
    settings and `APP_URL=https://www.cinderpass.com` in the project's production env.
 2. Deploy from a clean checkout (for example `git worktree add --detach`), not a working
-   folder, so Git-ignored local files are not uploaded: `vercel deploy --prod`.
+   folder, so Git-ignored local files are not uploaded:
+   `vercel deploy --prod --build-env GITHUB_SHA=$(git rev-parse HEAD)` (the SHA feeds `/api/version`).
 3. There are no migrations or scheduled jobs.
 
 The rate limiter reads the client IP from the first `X-Forwarded-For` entry, which Vercel
