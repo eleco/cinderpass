@@ -77,7 +77,7 @@
         },
         {
           "key": "ANALYTICS_SCRIPT_URL",
-          "value": "https://cross-projects-analytics-kpxw9.ondigitalocean.app/tracker.js",
+          "value": "https://cross-projects-analytics.vercel.app/tracker.js",
           "scope": "RUN_AND_BUILD_TIME"
         },
         {
