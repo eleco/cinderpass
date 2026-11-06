@@ -9,8 +9,12 @@ for (const file of [".env.production.local", ".env.digitalocean.local"]) {
   catch (error) { if (error.code !== "ENOENT") throw error; }
 }
 Object.assign(env, process.env);
-env.KV_REST_API_URL ||= env.UPSTASH_REDIS_REST_URL;
-env.KV_REST_API_TOKEN ||= env.UPSTASH_REDIS_REST_TOKEN;
+// `vercel env pull` writes "[SENSITIVE]" for values it cannot export.
+for (const [key, value] of Object.entries(env))
+  if (!value?.trim() || value.trim() === "[SENSITIVE]") delete env[key];
+// A standalone Upstash database supplies UPSTASH_REDIS_REST_*; prefer it.
+env.KV_REST_API_URL = env.UPSTASH_REDIS_REST_URL ?? env.KV_REST_API_URL;
+env.KV_REST_API_TOKEN = env.UPSTASH_REDIS_REST_TOKEN ?? env.KV_REST_API_TOKEN;
 
 const spec = JSON.parse(await readFile(".do/app.json", "utf8"));
 const missing = [];
