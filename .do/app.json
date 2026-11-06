@@ -14,8 +14,8 @@
       "name": "web",
       "github": {
         "repo": "eleco/cinderpass",
-        "branch": "deploy/digitalocean",
-        "deploy_on_push": false
+        "branch": "main",
+        "deploy_on_push": true
       },
       "source_dir": "/",
       "environment_slug": "node-js",

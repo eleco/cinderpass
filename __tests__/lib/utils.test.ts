@@ -5,8 +5,6 @@ afterEach(() => {
   vi.useRealTimers();
   delete process.env.APP_URL;
   process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
-  delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  delete process.env.VERCEL_URL;
 });
 
 describe('isExpired', () => {
@@ -115,8 +113,6 @@ describe('getBaseUrl', () => {
   it('prefers forwarded host headers over request.url origin', () => {
     delete process.env.APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
-    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    delete process.env.VERCEL_URL;
 
     const req = new Request('http://127.0.0.1:3000/api/secrets', {
       headers: {
@@ -130,11 +126,16 @@ describe('getBaseUrl', () => {
 });
 
 describe('getConfiguredBaseUrl', () => {
-  it('uses VERCEL_PROJECT_PRODUCTION_URL when explicit app URLs are not set', () => {
+  it('uses APP_URL when set', () => {
+    process.env.APP_URL = 'https://www.cinderpass.com/';
+
+    expect(getConfiguredBaseUrl()).toBe('https://www.cinderpass.com');
+  });
+
+  it('falls back to localhost when no app URL is configured', () => {
     delete process.env.APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
-    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'burnlink.vercel.app';
 
-    expect(getConfiguredBaseUrl()).toBe('https://burnlink.vercel.app');
+    expect(getConfiguredBaseUrl()).toBe('http://localhost:3000');
   });
 });

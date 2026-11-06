@@ -31,17 +31,13 @@ export function getConfiguredBaseUrl(): string {
   return (
     normalizeBaseUrl(process.env.APP_URL)
     ?? normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL)
-    ?? normalizeBaseUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL)
-    ?? normalizeBaseUrl(process.env.VERCEL_URL)
     ?? DEFAULT_DEV_BASE_URL
   );
 }
 
 export function getBaseUrl(request?: Request): string {
   const configured = normalizeBaseUrl(process.env.APP_URL)
-    ?? normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL)
-    ?? normalizeBaseUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL)
-    ?? normalizeBaseUrl(process.env.VERCEL_URL);
+    ?? normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
 
   if (configured) return configured;
 
@@ -49,7 +45,6 @@ export function getBaseUrl(request?: Request): string {
     const host = normalizeHost(
       request.headers.get('x-forwarded-host')
       ?? request.headers.get('host')
-      ?? request.headers.get('x-vercel-deployment-url')
     );
     const proto = normalizeHost(request.headers.get('x-forwarded-proto'));
 

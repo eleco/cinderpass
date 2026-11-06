@@ -119,13 +119,20 @@ Environment variables:
 
 ---
 
-## Deploy to Vercel
+## Deploy
 
-1. Push the repo to GitHub and import it into Vercel.
-2. Add an Upstash Redis database via Vercel Marketplace (it sets `KV_REST_API_URL` and
-   `KV_REST_API_TOKEN`), or set them from your own Upstash database.
-3. Set `APP_URL` to your production domain.
-4. Deploy. There are no migrations or scheduled jobs.
+Production runs on DigitalOcean App Platform (London) from the spec in `.do/app.json`,
+and redeploys on every push to `main`. Redis is a standalone Upstash database.
+
+1. Put `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` and the Mailgun settings in a
+   Git-ignored `.env.digitalocean.local`.
+2. Run `node scripts/render-do-spec.mjs` to write `.do/app.secrets.local.json` (Git-ignored,
+   mode 600), then `doctl apps update <app-id> --spec .do/app.secrets.local.json`
+   (or `doctl apps create` for a new app).
+3. There are no migrations or scheduled jobs.
+
+The rate limiter reads the client IP from DigitalOcean's `do-connecting-ip` header. Behind
+another proxy, make sure the first `X-Forwarded-For` entry cannot be set by clients.
 
 ---
 
@@ -148,7 +155,7 @@ Environment variables:
 - [Next.js](https://nextjs.org) 16 — App Router, React Server Components
 - [Upstash Redis](https://upstash.com) — serverless Redis over HTTP; key expiry and Lua scripts
 - [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) — browser-native AES-256-GCM encryption
-- Vercel — hosting
+- DigitalOcean App Platform — hosting
 
 ---
 

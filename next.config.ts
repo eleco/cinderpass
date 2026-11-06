@@ -3,9 +3,8 @@ import type { NextConfig } from 'next';
 import { getAnalyticsConfig, INFORMATIONAL_PATHS } from './lib/analytics';
 
 function getCommitSha(): string {
-  // In CI (GitHub Actions, Vercel, etc.) the SHA is provided as an env var
+  // GitHub Actions sets GITHUB_SHA; the DigitalOcean spec binds it to the deployed commit.
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
-  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA;
   try {
     return execSync('git rev-parse HEAD').toString().trim();
   } catch {
