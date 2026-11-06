@@ -92,5 +92,12 @@
         }
       ]
     }
+  ],
+  "domains": [
+    {
+      "domain": "www.cinderpass.com",
+      "type": "PRIMARY",
+      "minimum_tls_version": "1.2"
+    }
   ]
 }
