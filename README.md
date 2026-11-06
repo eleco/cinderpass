@@ -121,19 +121,18 @@ Environment variables:
 
 ## Deploy
 
-Production runs on DigitalOcean App Platform (London) from the spec in `.do/app.json`,
-and redeploys on every push to `main`. Redis is a standalone Upstash database.
+Production runs on Vercel (project `cinderpass`, domains `www.cinderpass.com` and
+`cinderpass.com`). Redis is a standalone Upstash database, not a Vercel Marketplace store.
 
-1. Put `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` and the Mailgun settings in a
-   Git-ignored `.env.digitalocean.local`.
-2. Run `node scripts/render-do-spec.mjs` to write `.do/app.secrets.local.json` (Git-ignored,
-   mode 600), then `doctl apps update <app-id> --spec .do/app.secrets.local.json`
-   (or `doctl apps create` for a new app).
+1. Set `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`), the Mailgun
+   settings and `APP_URL=https://www.cinderpass.com` in the project's production env.
+2. Deploy from a clean checkout (for example `git worktree add --detach`), not a working
+   folder, so Git-ignored local files are not uploaded: `vercel deploy --prod`.
 3. There are no migrations or scheduled jobs.
 
-The rate limiter reads the client IP from DigitalOcean's `do-connecting-ip` header. Behind
-another proxy, make sure the first `X-Forwarded-For` entry cannot be set by clients.
-
+The rate limiter reads the client IP from the first `X-Forwarded-For` entry, which Vercel
+overwrites (it also honours DigitalOcean's `do-connecting-ip` if present). Behind another
+proxy, make sure clients cannot set that entry themselves.
 ---
 
 ## API
@@ -155,7 +154,7 @@ another proxy, make sure the first `X-Forwarded-For` entry cannot be set by clie
 - [Next.js](https://nextjs.org) 16 — App Router, React Server Components
 - [Upstash Redis](https://upstash.com) — serverless Redis over HTTP; key expiry and Lua scripts
 - [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) — browser-native AES-256-GCM encryption
-- DigitalOcean App Platform — hosting
+- Vercel — hosting
 
 ---
 
