@@ -1,8 +1,8 @@
 // Simple in-memory sliding-window rate limiter.
-// Works for single-server / single-process deployments. On serverless
-// (Vercel) each function instance has its own memory, so this limits
-// per-instance — still meaningful protection against bursts on a single
-// cold instance. Replace with Redis/Upstash for cross-instance limits.
+// Works for single-server / single-process deployments (DigitalOcean App
+// Platform with one instance). With several instances each has its own
+// memory, so this limits per-instance. Replace with Redis/Upstash for
+// cross-instance limits.
 
 const windows = new Map<string, number[]>();
 
@@ -17,9 +17,12 @@ export function checkRateLimit(key: string, limit: number, windowMs: number): bo
 }
 
 export function getIp(request: Request): string {
+  // DigitalOcean App Platform sets do-connecting-ip from the TCP connection;
+  // the first X-Forwarded-For entry is client-supplied there and spoofable.
   return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    request.headers.get('x-real-ip') ??
+    request.headers.get('do-connecting-ip')?.trim() ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
     'unknown'
   );
 }

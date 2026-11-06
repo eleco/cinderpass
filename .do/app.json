@@ -1,0 +1,96 @@
+{
+  "name": "cinderpass",
+  "region": "lon",
+  "alerts": [
+    {
+      "rule": "DEPLOYMENT_FAILED"
+    },
+    {
+      "rule": "DOMAIN_FAILED"
+    }
+  ],
+  "services": [
+    {
+      "name": "web",
+      "github": {
+        "repo": "eleco/cinderpass",
+        "branch": "deploy/digitalocean",
+        "deploy_on_push": false
+      },
+      "source_dir": "/",
+      "environment_slug": "node-js",
+      "build_command": "npm run build",
+      "run_command": "npm run start -- --hostname 0.0.0.0 --port 8080",
+      "http_port": 8080,
+      "instance_count": 1,
+      "instance_size_slug": "apps-s-1vcpu-0.5gb",
+      "health_check": {
+        "http_path": "/api/version",
+        "initial_delay_seconds": 10,
+        "period_seconds": 15
+      },
+      "envs": [
+        {
+          "key": "NODE_ENV",
+          "value": "production",
+          "scope": "RUN_AND_BUILD_TIME"
+        },
+        {
+          "key": "GITHUB_SHA",
+          "value": "${_self.COMMIT_HASH}",
+          "scope": "BUILD_TIME"
+        },
+        {
+          "key": "APP_URL",
+          "value": "https://www.cinderpass.com",
+          "scope": "RUN_AND_BUILD_TIME"
+        },
+        {
+          "key": "KV_REST_API_URL",
+          "value": "__SET_IN_DO__",
+          "type": "SECRET",
+          "scope": "RUN_TIME"
+        },
+        {
+          "key": "KV_REST_API_TOKEN",
+          "value": "__SET_IN_DO__",
+          "type": "SECRET",
+          "scope": "RUN_TIME"
+        },
+        {
+          "key": "MAILGUN_API_KEY",
+          "value": "__SET_IN_DO__",
+          "type": "SECRET",
+          "scope": "RUN_TIME"
+        },
+        {
+          "key": "MAILGUN_DOMAIN",
+          "value": "__SET_IN_DO__",
+          "type": "SECRET",
+          "scope": "RUN_TIME"
+        },
+        {
+          "key": "MAILGUN_FROM_EMAIL",
+          "value": "__SET_IN_DO__",
+          "type": "SECRET",
+          "scope": "RUN_TIME"
+        },
+        {
+          "key": "ANALYTICS_SCRIPT_URL",
+          "value": "https://cross-projects-analytics-kpxw9.ondigitalocean.app/tracker.js",
+          "scope": "RUN_AND_BUILD_TIME"
+        },
+        {
+          "key": "ANALYTICS_SITE_ID",
+          "value": "e4f55a0e-94e1-4408-b3ed-2bc314d0bb28",
+          "scope": "RUN_AND_BUILD_TIME"
+        },
+        {
+          "key": "ANALYTICS_SITE_ORIGIN",
+          "value": "https://www.cinderpass.com",
+          "scope": "RUN_AND_BUILD_TIME"
+        }
+      ]
+    }
+  ]
+}

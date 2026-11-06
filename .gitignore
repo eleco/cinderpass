@@ -3,3 +3,7 @@ node_modules
 .env
 .env.local
 .vercel
+
+# DigitalOcean spec with real secrets
+.do/*.local.json
+.env*.local

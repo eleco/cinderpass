@@ -44,6 +44,13 @@ describe('checkRateLimit', () => {
 });
 
 describe('getIp', () => {
+  it('prefers the DigitalOcean connecting IP over a spoofable x-forwarded-for', () => {
+    const req = new Request('http://localhost/', {
+      headers: { 'do-connecting-ip': '203.0.113.7', 'x-forwarded-for': '1.2.3.4, 203.0.113.7' },
+    });
+    expect(getIp(req)).toBe('203.0.113.7');
+  });
+
   it('extracts IP from x-forwarded-for header', () => {
     const req = new Request('http://localhost/', {
       headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' },
